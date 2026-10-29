@@ -34,6 +34,7 @@ let selectedView = 'cohort', saving = false;
 let renamingPlan: string | null = null;
 const dropCache = new Map<HTMLElement, ReturnType<typeof Core.move>>();
 const labels: Record<string, string> = { schedule: 'Quadro de horários', rooms: 'Salas', teachers: 'Professores', subjects: 'Disciplinas', cohorts: 'Turmas / etapas', offers: 'Ofertas de disciplinas', graduates: 'Formandos', periods: 'Períodos letivos', backup: 'Dados e backup', about: 'Sobre' };
+const navIcons: Record<string,string> = {schedule:'▦',rooms:'▤',teachers:'♙',subjects:'▥',cohorts:'♧',offers:'⇄',graduates:'♧',periods:'▦',backup:'▣',about:'ⓘ'};
 const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 function notice(s: string, bad = false) { $('#notice').textContent = s; $('#notice').className = 'visible' + (bad ? ' bad' : ''); }
 function plan() { return db.plans.find(p => p.id === planId && p.period === period); }
@@ -69,7 +70,7 @@ function download(text: string, file: string) { const url = URL.createObjectURL(
 function render() {
     clearDrag();
     $('#title').textContent = labels[page];
-    $('#nav').innerHTML = Object.entries(labels).map(([key, label]) => `<button data-page="${key}" class="${page === key ? 'active' : ''}">${label}</button>`).join('');
+    $('#nav').innerHTML = Object.entries(labels).map(([key, label]) => `<button data-page="${key}" class="${page === key ? 'active' : ''}"><span class="nav-icon" aria-hidden="true">${navIcons[key]}</span>${label}</button>`).join('');
     $$('[data-page]').forEach(b => b.onclick = () => { if (busy)
         return; page = b.dataset.page!; render(); });
     $('#period').innerHTML = db.periods.map(p => `<option ${p === period ? 'selected' : ''}>${p}</option>`).join('');
@@ -89,7 +90,7 @@ function renderSchedule() {
     if (!plan())
         planId = plans.at(-1)?.id || '';
     const p = plan();
-    $('#content').innerHTML = `<div class="panel no-print"><div class="actions">${button('generate', '✦ Gerar outra alternativa', 'primary')}<select id="plans"><option value="">Selecione uma grade</option>${options(plans, planId)}</select>${button('undo', 'Desfazer movimento')}${button('rename-plan', 'Renomear')}${button('cancel-generation', 'Cancelar busca')}${button('pdf', 'Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div><p class="muted">As grades anteriores são preservadas. 🔒 fixa uma aula na próxima geração. Arraste uma aula ou clique nela e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Duplas se movem juntas. Clique com o botão direito na aula para alterar sua sala.</p>${!db.offers.length ? button('demo', 'Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
+    $('#content').innerHTML = `<div class="panel no-print schedule-tools"><div class="actions"><div class="command-group"><small>GERAÇÃO</small><div class="actions">${button('generate', '✦ Gerar outra alternativa', 'primary')}<select id="plans"><option value="">Selecione uma grade</option>${options(plans, planId)}</select>${button('cancel-generation', 'Cancelar busca')}</div></div><div class="command-group"><small>EDIÇÃO</small><div class="actions">${button('undo', 'Desfazer movimento')}${button('rename-plan', 'Renomear')}</div></div><div class="command-group"><small>EXPORTAÇÃO E VISUALIZAÇÃO</small><div class="actions">${button('pdf', 'Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div></div></div><p class="muted">As grades anteriores são preservadas. 🔒 fixa uma aula na próxima geração. Arraste uma aula ou clique nela e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Duplas se movem juntas. Clique com o botão direito na aula para alterar sua sala.</p>${!db.offers.length ? button('demo', 'Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
     $('#generate').onclick = generate;
     $('#cancel-generation').hidden = true;
     $<HTMLSelectElement>('#view').value = selectedView;
@@ -103,8 +104,10 @@ function renderSchedule() {
             return; const n = Core.demo(); n.revision = db.revision; await save(n); period = db.periods[0]; render(); };
     if (p) {
         const q = Core.quality(db, p), reports = Core.graduateReport(db, p), hard = Core.hardIssues(db, p.lessons), missing = Core.completeness(db, p);
-        $('#report').innerHTML = `<div class="panel no-print"><div class="metrics"><span><strong>${p.lessons.reduce((n, l) => n + l.length, 0)}</strong>aulas semanais</span><span><strong>${reports.filter(r => r.ok).length}/${reports.length}</strong>formandos atendidos</span><span><strong>${p.lessons.filter(l => l.locked).length}</strong>blocos fixos</span><span><strong>${q.gaps}</strong>janelas nas turmas</span></div>${[...hard, ...missing].map(s => `<div class="bad">${esc(s)}</div>`).join('')}${reports.map(r => `<div class="summary ${r.ok ? 'ok' : 'warning'}"><b>${esc(r.name)}</b> · ${r.ok ? 'Todas as disciplinas compatíveis' : 'Pendências: ' + esc(r.reasons.join('; '))}${r.limited ? ' (busca de combinações limitada)' : ''}</div>`).join('')}</div>`;
+        $('#report').innerHTML = `<div class="panel no-print"><div class="metrics"><span><strong>${p.lessons.reduce((n, l) => n + l.length, 0)}</strong>aulas semanais</span><span><strong>${reports.filter(r => r.ok).length}/${reports.length}</strong>formandos atendidos</span><span><strong>${p.lessons.filter(l => l.locked).length}</strong>blocos fixos</span><span><strong>${q.gaps}</strong>janelas nas turmas</span></div>${hard.length || missing.length ? `<section class="diagnostics" role="status"><h3>⚠ Atenção à grade · ${hard.length + missing.length} aviso(s)</h3>${[...hard, ...missing].map(s => `<p>${esc(s)}</p>`).join('')}</section>` : ''}${reports.length ? `<section class="graduate-list"><div class="section-heading"><h3>Formandos · ${reports.filter(r => r.ok).length}/${reports.length} compatíveis</h3><button id="expand-graduates" type="button">Expandir todos</button></div>${reports.map(r => `<details class="summary ${r.ok ? 'ok' : 'warning'}"><summary><span class="avatar" aria-hidden="true">${esc(r.name.slice(0,1))}</span><b>${esc(r.name)}</b><span>${r.ok ? 'Disciplinas compatíveis' : 'Pendências'}</span></summary><p>${r.ok ? 'Todas as disciplinas necessárias estão compatíveis.' : esc(r.reasons.join('; '))}${r.limited ? ' (busca de combinações limitada)' : ''}</p></details>`).join('')}</section>` : ''}</div>`;
     }
+    const expand = document.querySelector<HTMLButtonElement>('#expand-graduates');
+    if (expand) expand.onclick = () => { const entries = $$('.graduate-list details') as HTMLDetailsElement[]; const open = entries.some(d => !d.open); entries.forEach(d => d.open = open); expand.textContent = open ? 'Recolher todos' : 'Expandir todos'; };
     renderTables();
 }
 function renderTables() {
@@ -125,7 +128,7 @@ function renderTables() {
         groups = db.teachers.filter(t => p.lessons.some(l => db.offers.find(o => o.id === l.offer)?.teacher === t.id)).map(t => ({ id: t.id, title: t.name, lessons: p.lessons.filter(l => db.offers.find(o => o.id === l.offer)?.teacher === t.id) }));
     if (mode === 'graduate')
         groups = Core.graduateReport(db, p).map(g => ({ id: g.id, title: g.name + (g.ok ? '' : ' · atendimento parcial'), lessons: p.lessons.filter(l => g.offers.includes(l.offer)) }));
-    $('#tables').innerHTML = groups.map(g => `<article class="panel"><h2>${esc(g.title)} <span class="tag">${period}</span></h2><p class="muted">CelGrade LM · ${esc(p.name)}</p>${mode === 'graduate' ? graduateNote(g.id, p) : ''}<div class="print-warning">${[...Core.hardIssues(db, p.lessons), ...Core.completeness(db, p)].length ? 'RASCUNHO — esta grade contém conflitos ou cargas incompletas.' : ''}</div><div class="scroll"><table class="grid"><thead><tr><th>Horário</th>${days.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${Core.times.map((t, slot) => `${slot === 2 ? '<tr class="break"><td colspan="6">09:10–09:20 · INTERVALO</td></tr>' : ''}<tr><td class="time">${t}</td>${days.map((_, day) => { const ls = g.lessons.filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length); return `<td data-cohort="${mode === 'cohort' ? esc(g.id) : ''}" data-day="${day}" data-slot="${slot}">${ls.map(l => { const o = db.offers.find(o => o.id === l.offer)!; return `<div class="lesson" tabindex="0" role="button" aria-label="Selecionar aula; botão direito ou Shift+F10 para alterar sala" draggable="${mode === 'cohort' && !l.locked}" data-lesson="${l.id}">${slot === l.slot ? `<button data-lock="${l.id}" title="Fixar ou destravar aula">${l.locked ? '🔒' : '🔓'}</button>` : ''}<b>${esc(name('subjects', o.subject))}</b><small>${esc(name('teachers', o.teacher))}<br>${esc(name('rooms', l.room))} · ${l.length === 2 ? 'dupla' : 'aula'}</small></div>`; }).join('') || '<div class="free">—</div>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div></article>`).join('') || '<div class="panel">Nenhum registro para esta visualização.</div>';
+    $('#tables').innerHTML = groups.map(g => `<article class="panel"><h2>${esc(g.title)} <span class="tag">${period}</span></h2><p class="muted">CelGrade LM · ${esc(p.name)}</p>${mode === 'graduate' ? graduateNote(g.id, p) : ''}<div class="print-warning">${[...Core.hardIssues(db, p.lessons), ...Core.completeness(db, p)].length ? 'RASCUNHO — esta grade contém conflitos ou cargas incompletas.' : ''}</div><div class="scroll"><table class="grid"><thead><tr><th>Horário</th>${days.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${Core.times.map((t, slot) => `${slot === 2 ? '<tr class="break"><td colspan="6">09:10–09:20 · INTERVALO</td></tr>' : ''}<tr><td class="time">${t}</td>${days.map((_, day) => { const ls = g.lessons.filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length); return `<td data-cohort="${mode === 'cohort' ? esc(g.id) : ''}" data-day="${day}" data-slot="${slot}">${ls.map(l => { const o = db.offers.find(o => o.id === l.offer)!; return `<div class="lesson subject-${subjectTone(o.subject)} ${l.locked ? 'locked' : ''}" tabindex="0" role="button" aria-label="Selecionar aula; botão direito ou Shift+F10 para alterar sala" draggable="${mode === 'cohort' && !l.locked}" data-lesson="${l.id}">${slot === l.slot ? `<button data-lock="${l.id}" title="Fixar ou destravar aula">${l.locked ? '🔒' : '🔓'}</button>` : ''}<b>${esc(name('subjects', o.subject))}</b><small>${esc(name('teachers', o.teacher))}<br>${esc(name('rooms', l.room))} · ${l.length === 2 ? 'dupla' : 'aula'}</small></div>`; }).join('') || '<div class="free">—</div>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div></article>`).join('') || '<div class="panel">Nenhum registro para esta visualização.</div>';
     $$('[data-lesson]').forEach(el => {
         el.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); openRoomEditor(el.dataset.lesson!); };
         el.addEventListener('keydown', e => { if (e.target === el && (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10'))) { e.preventDefault(); e.stopPropagation(); openRoomEditor(el.dataset.lesson!); } });
@@ -153,7 +156,7 @@ function renderTables() {
     $$('td[data-cohort]').forEach(cell => {
         cell.tabIndex = 0;
         const show = (e: MouseEvent) => { if (!dragId)
-            return; const r = checkDrop(cell); $('#tip').hidden = false; $('#tip').textContent = dropText(r); positionDropTip(e.clientX, e.clientY); };
+            return; const r = checkDrop(cell); $('#tip').hidden = false; $('#tip').textContent = `${days[Number(cell.dataset.day)]} · ${Core.times[Number(cell.dataset.slot)]}\n${dropText(r)}`; positionDropTip(e.clientX, e.clientY); };
         cell.ondragover = e => { if (dragId) {
             e.preventDefault();
             show(e);
@@ -170,6 +173,7 @@ function renderTables() {
         } };
     });
 }
+function subjectTone(id: string) { let hash = 0; for (const c of id) hash = (hash * 31 + c.charCodeAt(0)) >>> 0; return hash % 6; }
 function graduateNote(id: string, p: Plan) { const r = Core.graduateReport(db, p).find(r => r.id === id)!; return `<p class="${r.ok ? 'ok' : 'warning'}">${r.ok ? 'Todas as disciplinas necessárias estão compatíveis.' : esc(r.reasons.join('; '))}${r.limited ? ' Verificação limitada; não é prova de impossibilidade.' : ''}</p>`; }
 function dropText(r: ReturnType<typeof Core.move>) { return r.red.length ? r.red.join('\n') : r.yellow.length ? 'Confirmar exceção:\n' + r.yellow.join('\n') : 'Movimento permitido'; }
 function checkDrop(cell: HTMLElement) { const cached = dropCache.get(cell); if (cached)
@@ -268,11 +272,11 @@ async function generate() {
     worker.onerror = e => { finish(); notice('Falha no gerador: ' + e.message, true); };
     worker.postMessage({ db, period, base: plan(), seed: Date.now() });
 }
-function renderList() { const key = page as 'rooms' | 'teachers' | 'subjects' | 'cohorts' | 'offers' | 'graduates'; const rows = db[key].filter(x => !('period' in x) || x.period === period); $('#content').innerHTML = `<div class="panel"><div class="actions">${button('add', '+ Adicionar', 'primary')}<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><table><thead><tr><th>Registro</th><th>Detalhes</th><th>Ações</th></tr></thead><tbody>${rows.map(x => { let title = 'name' in x ? x.name : name('subjects', x.subject); let detail = ''; if ('available' in x)
+function renderList() { const key = page as 'rooms' | 'teachers' | 'subjects' | 'cohorts' | 'offers' | 'graduates'; const rows = db[key].filter(x => !('period' in x) || x.period === period); $('#content').innerHTML = `<div class="panel records-panel"><div class="actions">${button('add', '+ Adicionar', 'primary')}<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><table><thead><tr><th>Registro</th><th>Detalhes</th><th>Ações</th></tr></thead><tbody>${rows.map(x => { let title = 'name' in x ? x.name : name('subjects', x.subject); let detail = ''; if ('available' in x)
     detail = x.available.filter(Boolean).length + ' horários disponíveis'; if ('stage' in x)
     detail = x.stage + 'º semestre · ' + (x.room ? name('rooms', x.room) : 'sala automática'); if ('load' in x)
     detail = name('teachers', x.teacher) + ' · ' + name('cohorts', x.cohort) + ' · ' + x.load + ' aulas/semana'; if ('subjects' in x)
-    detail = (x.active ? 'Ativo · ' : 'Inativo · ') + x.subjects.map(id => name('subjects', id)).join(', '); return `<tr><td>${esc(title)}</td><td>${esc(detail)}</td><td><button data-edit="${x.id}">Editar</button> <button data-delete="${x.id}">Excluir</button></td></tr>`; }).join('')}</tbody></table>${rows.length ? '' : '<p class="muted">Nenhum cadastro ainda.</p>'}</div>`; $('#add').onclick = () => edit(null); $$('[data-edit]').forEach(b => b.onclick = () => edit(b.dataset.edit!)); $$('[data-delete]').forEach(b => b.onclick = () => remove(b.dataset.delete!)); }
+    detail = (x.active ? 'Ativo · ' : 'Inativo · ') + x.subjects.map(id => name('subjects', id)).join(', '); return `<tr><td>${esc(title)}</td><td>${esc(detail)}</td><td><button class="edit-action" data-edit="${x.id}">Editar</button> <button class="delete-action" data-delete="${x.id}">Excluir</button></td></tr>`; }).join('')}</tbody></table>${rows.length ? '' : '<p class="muted">Nenhum cadastro ainda.</p>'}</div>`; $('#add').onclick = () => edit(null); $$('[data-edit]').forEach(b => b.onclick = () => edit(b.dataset.edit!)); $$('[data-delete]').forEach(b => b.onclick = () => remove(b.dataset.delete!)); }
 function edit(id: string | null) {
     renamingPlan = null;
     editing = id;
@@ -514,14 +518,8 @@ function openRoomEditor(id: string) {
 }
 
 
-function positionDropTip(x: number, y: number) {
-    const tip = $('#tip'), rect = tip.getBoundingClientRect(), gap = 24;
-    // Keep the message above the pointer; the compact drag preview starts below it.
-    const left = Math.max(10, Math.min(x - rect.width / 2, window.innerWidth - rect.width - 10));
-    let top = y - rect.height - gap;
-    if (top < 10) { top = 10; tip.style.left = Math.max(10, x - rect.width - gap) + 'px'; }
-    else tip.style.left = left + 'px';
-    tip.style.top = Math.max(10, Math.min(top, window.innerHeight - rect.height - 10)) + 'px';
+function positionDropTip(_x: number, _y: number) {
+    const tip = $('#tip'); tip.style.left = ''; tip.style.top = '';
 }
 function renderAbout() {
     const icon = {
@@ -555,3 +553,4 @@ function renderAbout() {
 </blockquote>
 </article>`;
 }
+

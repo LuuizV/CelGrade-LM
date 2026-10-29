@@ -14,7 +14,7 @@ else
     app.whenReady().then(() => {
         Menu.setApplicationMenu(null);
         store = new Store(dataPath());
-        win = new BrowserWindow({ width: 1440, height: 920, minWidth: 900, minHeight: 600, title: 'CelGrade LM', webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+        win = new BrowserWindow({ width: 1440, height: 920, minWidth: 900, minHeight: 600, title: 'CelGrade LM', titleBarStyle: 'hidden', titleBarOverlay: { color: '#135F49', symbolColor: '#FFFFFF', height: 38 }, backgroundColor: '#F3F6F3', webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
         win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
         win.webContents.on('will-navigate', e => e.preventDefault());
         ipcMain.handle('release-seen', () => store.seenRelease());
@@ -40,4 +40,5 @@ else
     }).catch(error => { dialog.showErrorBox('CelGrade LM — não foi possível abrir', String(error) + '\nNenhum banco foi apagado. Preserve a pasta de dados.'); app.quit(); });
 app.on('window-all-closed', () => app.quit());
 app.on('before-quit', () => store?.close());
+
 

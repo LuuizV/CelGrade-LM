@@ -1,5 +1,20 @@
 [
   {
+    "version": "0.8.0",
+    "date": "2026-10-29",
+    "title": "Identidade institucional e grade mais legível",
+    "changes": {
+      "Visual": [
+        "Paleta verde e dourada, barra de título verde e navegação com ícones.",
+        "Disciplinas com cores suaves, seleção destacada e aulas fixas identificadas.",
+        "Comandos agrupados por geração, edição e exportação.",
+        "Formandos em lista expansível e diagnósticos em destaque.",
+        "Cadastros e formulários com melhor espaçamento e ações de edição e exclusão distintas.",
+        "Feedback do destino em painel fixo separado da grade, sem encobrir aulas."
+      ]
+    }
+  },
+  {
     "version": "0.7.1",
     "date": "2026-10-29",
     "title": "Nova página Sobre",
