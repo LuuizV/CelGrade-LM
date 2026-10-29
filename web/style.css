@@ -4,4 +4,38 @@
 #app-version{text-align:left;font-size:12px;color:#17694e;background:#edf5ef;border:1px solid #d9e7dc}#app-version:focus-visible{outline:3px solid #c59b40}.release-heading{display:flex;justify-content:space-between;align-items:start;gap:20px}.release-heading small{color:#708579;letter-spacing:2px}.release-heading h2{margin:8px 0}#release-intro{line-height:1.6;color:#5a7466}.release-entry{border-top:1px solid #dce5df;padding:18px 0}.release-entry summary{cursor:pointer;font-weight:600;line-height:1.6;color:#17694e}.release-entry li{line-height:1.7;margin-bottom:7px}.release-entry h3{margin-top:20px;color:#587062}#release-close{position:sticky;top:0}#release-history{width:min(800px,94vw)}
 
 
-#app-version.update-available{background:#b42332;color:#fff;border-color:#961d29;font-weight:700}.drag-preview{position:fixed;left:-1000px;top:0;width:160px;padding:8px;border-radius:6px;background:#e5f2e9;color:#23423c;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#tip{max-height:45vh;max-width:min(350px,90vw);overflow:hidden;line-height:1.5}.about{max-width:900px;line-height:1.8}.about h2{font-size:26px}.about h3{margin-top:28px}.about blockquote{margin:28px 0 0;padding:4px 24px 16px;border-left:4px solid #b28846;background:#f7f8f1;border-radius:6px}aside{overflow-y:auto}.bottom{padding-top:20px}
+#app-version.update-available{background:#b42332;color:#fff;border-color:#961d29;font-weight:700}.drag-preview{position:fixed;left:-1000px;top:0;width:160px;padding:8px;border-radius:6px;background:#e5f2e9;color:#23423c;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#tip{max-height:45vh;max-width:min(350px,90vw);overflow:hidden;line-height:1.5}
+/* Página Sobre */
+.about{max-width:920px;line-height:1.75;display:grid;gap:18px}
+.about>*{animation:about-in .45s ease both}
+.about>:nth-child(2){animation-delay:.07s}
+.about>:nth-child(3){animation-delay:.14s}
+.about>:nth-child(4){animation-delay:.21s}
+@keyframes about-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.about>*{animation:none}}
+.about p{margin:0}
+.about-hero{position:relative;overflow:hidden;padding:38px 40px;border-radius:16px;color:#fff;background:linear-gradient(135deg,#17694e 0%,#0f4d3a 100%)}
+.about-hero::before{content:"";position:absolute;inset:0;background:linear-gradient(#ffffff14 1px,transparent 1px) 0 0/44px 44px,linear-gradient(90deg,#ffffff14 1px,transparent 1px) 0 0/44px 44px;-webkit-mask-image:linear-gradient(115deg,transparent 35%,#000);mask-image:linear-gradient(115deg,transparent 35%,#000)}
+.about-hero::after{content:"";position:absolute;right:-70px;top:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,#b2884666,transparent 68%)}
+.about-hero>*{position:relative;z-index:1}
+.about-badge{display:inline-block;padding:5px 12px;border-radius:999px;background:#ffffff26;border:1px solid #ffffff3d;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+.about-hero h2{margin:16px 0 10px;font-size:30px;line-height:1.25;max-width:640px}
+.about-hero p{max-width:600px;font-size:15px;color:#e1f0e8}
+.about-section{margin:0;padding:26px 28px}
+.about-section>h3{display:flex;align-items:center;gap:12px;margin:0 0 16px;font-size:18px;color:#17694e}
+.about-icon{display:inline-grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#e5f2e9;color:#17694e;flex:none}
+.about-icon svg,.about-heart svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.about-people{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}
+.about-person{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid #dce5df;border-radius:12px;background:#f8faf8}
+.about-person strong{display:block;line-height:1.35}
+.about-person small{color:#7e9285;font-size:12px}
+.about-avatar{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#17694e,#2f8b6a);color:#fff;font-weight:700;letter-spacing:1px;flex:none}
+.about .about-note{margin-top:16px;color:#5a7466}
+.about-dedication{position:relative;margin:0;padding:30px 34px 32px;border:1px solid #ecdfc0;border-radius:16px;background:linear-gradient(145deg,#fdf9ee,#f7f8f1)}
+.about-dedication::before{content:"\201C";position:absolute;right:26px;top:-6px;font:700 110px/1 Georgia,serif;color:#b2884633}
+.about-heart{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#b28846;color:#fff}
+.about-dedication h3{margin:12px 0 14px;font-size:22px;color:#8a6a2f}
+.about-dedication p{font:16px/1.85 Georgia,"Times New Roman",serif;color:#3c4a42}
+.about-dedication p+p{margin-top:14px}
+@media(max-width:850px){.about-hero{padding:28px 24px}.about-hero h2{font-size:24px}.about-dedication{padding:24px}}
+aside{overflow-y:auto}.bottom{padding-top:20px}
