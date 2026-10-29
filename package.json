@@ -1,13 +1,13 @@
 {
   "name": "celgrade-lm",
   "productName": "CelGrade LM",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc && node scripts/build-web.cjs",
     "start": "npm run build && electron .",
-    "test": "npm run build && node --test tests/core.cjs tests/regression.cjs tests/dom.cjs tests/updates.cjs",
+    "test": "npm run build && node --test tests/core.cjs tests/regression.cjs tests/dom.cjs tests/updates.cjs tests/changelog.cjs",
     "package:win": "npm run build && electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {

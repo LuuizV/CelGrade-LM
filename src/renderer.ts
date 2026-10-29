@@ -1,8 +1,11 @@
 import type { DB, Plan, Lesson } from './core';
+declare const ReleaseHistory: {version:string; releases: {version:string; date:string; title:string; changes:Record<string,string[]>}[]};
 declare const Core: typeof import('./core');
 declare global {
     interface Window {
         desktop?: {
+            seenRelease?: () => Promise<string | null>;
+            markReleaseSeen?: () => Promise<void>;
             updateState?: () => Promise<{text: string; ready: boolean}>;
             checkUpdates?: () => Promise<void>;
             installUpdate?: () => Promise<boolean>;
@@ -304,6 +307,7 @@ async function remove(id: string) { if (!confirm('Excluir este registro? Registr
     return; const n = structuredClone(db); (n as any)[page] = (n as any)[page].filter((x: any) => x.id !== id); try {
     await save(n);
     render();
+    if (typeof ReleaseHistory !== 'undefined') void initReleaseHistory();
 }
 catch (e) {
     notice('Não foi possível excluir. Remova os vínculos antes. ' + String(e), true);
@@ -357,6 +361,7 @@ function renderPeriods() { $('#content').innerHTML = `<div class="panel"><h2>Per
     period = value;
     planId = '';
     render();
+    if (typeof ReleaseHistory !== 'undefined') void initReleaseHistory();
 }
 catch (e) {
     notice(String(e), true);
@@ -406,13 +411,14 @@ $('#folder').onclick = () => window.desktop ? window.desktop.folder() : notice('
     Core.validate(db);
     period = db.periods[0];
     render();
+    if (typeof ReleaseHistory !== 'undefined') void initReleaseHistory();
 }
 catch (e) {
     notice('Falha ao abrir os dados: ' + String(e), true);
 } })();
 
 if (window.desktop?.updateState) {
-    const status = document.createElement('div'); status.className = 'panel'; status.setAttribute('role', 'status');
+    const status = document.createElement('div'); status.className = 'panel no-print'; status.setAttribute('role', 'status');
     const message = document.createElement('span');
     const check = document.createElement('button'); check.textContent = 'Verificar atualizações';
     const install = document.createElement('button'); install.textContent = 'Instalar e reiniciar'; install.hidden = true;
@@ -426,4 +432,43 @@ if (window.desktop?.updateState) {
         try { await window.desktop!.installUpdate!(); } catch { notice('Não foi possível instalar a atualização.', true); }
         finally { document.body.inert = false; }
     };
+}
+
+async function initReleaseHistory() {
+    const button = document.querySelector<HTMLButtonElement>('#app-version');
+    if (!button) return;
+    button.textContent = `Versão ${ReleaseHistory.version} · Ver mudanças`;
+    let seen: string | null = null;
+    try { seen = window.desktop?.seenRelease ? await window.desktop.seenRelease() : localStorage.getItem('celgrade-seen-release'); } catch { /* Display again rather than silently lose the notice. */ }
+    const newer = (a: string, b: string) => { const aa = a.split('.').map(Number), bb = b.split('.').map(Number); for (let i=0;i<3;i++) { if (aa[i] !== bb[i]) return aa[i] > bb[i]; } return false; };
+    const unread = ReleaseHistory.releases.filter(r => seen && /^\d+\.\d+\.\d+$/.test(seen) ? newer(r.version, seen) : r.version === ReleaseHistory.version);
+    const dialog = document.createElement('dialog'); dialog.id = 'release-history'; dialog.setAttribute('aria-labelledby', 'release-title');
+    dialog.innerHTML = '<div class="release-heading"><div><small>CELGRADE LM</small><h2 id="release-title">Histórico de atualizações</h2></div><button type="button" id="release-close" aria-label="Fechar histórico">Fechar</button></div><p id="release-intro"></p><div id="release-list"></div><p id="release-error" role="status"></p>';
+    const list = dialog.querySelector<HTMLElement>('#release-list')!;
+    for (const r of ReleaseHistory.releases) {
+        const details = document.createElement('details'); details.className = 'release-entry';
+        details.open = unread.some(u => u.version === r.version) || r.version === ReleaseHistory.version;
+        const summary = document.createElement('summary'); summary.textContent = `${r.version} — ${r.title} · ${r.date.split('-').reverse().join('/')}${r.version === ReleaseHistory.version ? ' · Atual' : ''}`; details.append(summary);
+        for (const [category, items] of Object.entries(r.changes)) {
+            const h = document.createElement('h3'); h.textContent = category; const ul = document.createElement('ul');
+            for (const text of items) { const li = document.createElement('li'); li.textContent = text; ul.append(li); }
+            details.append(h,ul);
+        }
+        list.append(details);
+    }
+    document.body.append(dialog);
+    const open = (automatic: boolean) => {
+        if (dialog.open) return;
+        dialog.querySelector('#release-title')!.textContent = automatic ? 'O que mudou no CelGrade LM' : 'Histórico de atualizações';
+        dialog.querySelector('#release-intro')!.textContent = automatic ? `Você está na versão ${ReleaseHistory.version}. Confira as novidades abaixo. O histórico continua disponível pelo botão da versão.` : 'Consulte as novidades, melhorias e correções de cada versão. Clique em uma versão para expandir.';
+        dialog.showModal();
+    };
+    dialog.querySelector<HTMLButtonElement>('#release-close')!.onclick = () => dialog.close();
+    dialog.addEventListener('close', async () => {
+        try { if (window.desktop?.markReleaseSeen) await window.desktop.markReleaseSeen(); else localStorage.setItem('celgrade-seen-release', ReleaseHistory.version); }
+        catch { notice('Não foi possível registrar a leitura das novidades. O aviso poderá aparecer novamente.', true); }
+        button.focus();
+    });
+    button.onclick = () => open(false);
+    if (unread.length && !document.querySelector('dialog[open]')) open(true);
 }

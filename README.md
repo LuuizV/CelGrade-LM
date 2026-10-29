@@ -1,4 +1,4 @@
-# CelGrade LM 0.4
+# CelGrade LM 0.5
 
 Atualizações automáticas com consentimento e instalador Windows. Consulte [ATUALIZACOES.md](ATUALIZACOES.md) para instalação, publicação e limitações.
 

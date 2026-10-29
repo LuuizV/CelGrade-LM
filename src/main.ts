@@ -16,6 +16,8 @@ else
         win = new BrowserWindow({ width: 1440, height: 920, minWidth: 900, minHeight: 600, title: 'CelGrade LM', webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
         win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
         win.webContents.on('will-navigate', e => e.preventDefault());
+        ipcMain.handle('release-seen', () => store.seenRelease());
+        ipcMain.handle('release-ack', () => store.markReleaseSeen(app.getVersion()));
         ipcMain.handle('read', () => read());
         ipcMain.handle('save', (_e, next: DB, reason: string) => store.save(next, typeof reason === 'string' ? reason : 'Alteração'));
         ipcMain.handle('history', () => store.history());
