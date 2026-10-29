@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.7.1",
+    "date": "2026-10-29",
+    "title": "Nova página Sobre",
+    "changes": {
+      "Melhorias": [
+        "Página Sobre redesenhada, com destaque para os desenvolvedores, o incentivo do professor e a dedicatória à Celina.",
+        "Textos do incentivo ao projeto e da dedicatória atualizados."
+      ],
+      "Correções": [
+        "Nome de Marcus Vinicius Magalhães França Filho exibido sem letras maiúsculas."
+      ]
+    }
+  },
+  {
     "version": "0.7.0",
     "date": "2026-10-29",
     "title": "Interface mais limpa e créditos",
