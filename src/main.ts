@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
+import { app, Menu, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import { setupUpdates } from './updates';
 import { Store } from './storage';
 import path from 'node:path';
@@ -12,6 +12,7 @@ if (!app.requestSingleInstanceLock())
     app.quit();
 else
     app.whenReady().then(() => {
+        Menu.setApplicationMenu(null);
         store = new Store(dataPath());
         win = new BrowserWindow({ width: 1440, height: 920, minWidth: 900, minHeight: 600, title: 'CelGrade LM', webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
         win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -39,3 +40,4 @@ else
     }).catch(error => { dialog.showErrorBox('CelGrade LM — não foi possível abrir', String(error) + '\nNenhum banco foi apagado. Preserve a pasta de dados.'); app.quit(); });
 app.on('window-all-closed', () => app.quit());
 app.on('before-quit', () => store?.close());
+

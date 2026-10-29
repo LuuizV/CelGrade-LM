@@ -6,10 +6,10 @@ declare global {
         desktop?: {
             seenRelease?: () => Promise<string | null>;
             markReleaseSeen?: () => Promise<void>;
-            updateState?: () => Promise<{text: string; ready: boolean}>;
+            updateState?: () => Promise<{text: string; ready: boolean; available?: boolean}>;
             checkUpdates?: () => Promise<void>;
             installUpdate?: () => Promise<boolean>;
-            onUpdate?: (callback: (state: {text: string; ready: boolean}) => void) => void;
+            onUpdate?: (callback: (state: {text: string; ready: boolean; available?: boolean}) => void) => void;
             read: () => Promise<DB>;
             save: (d: DB, reason?: string) => Promise<DB>;
             history: () => Promise<{
@@ -33,7 +33,7 @@ let undo: Plan[] = [];
 let selectedView = 'cohort', saving = false;
 let renamingPlan: string | null = null;
 const dropCache = new Map<HTMLElement, ReturnType<typeof Core.move>>();
-const labels: Record<string, string> = { schedule: 'Quadro de horários', rooms: 'Salas', teachers: 'Professores', subjects: 'Disciplinas', cohorts: 'Turmas / etapas', offers: 'Ofertas de disciplinas', graduates: 'Formandos', periods: 'Períodos letivos', backup: 'Dados e backup' };
+const labels: Record<string, string> = { schedule: 'Quadro de horários', rooms: 'Salas', teachers: 'Professores', subjects: 'Disciplinas', cohorts: 'Turmas / etapas', offers: 'Ofertas de disciplinas', graduates: 'Formandos', periods: 'Períodos letivos', backup: 'Dados e backup', about: 'Sobre' };
 const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 function notice(s: string, bad = false) { $('#notice').textContent = s; $('#notice').className = 'visible' + (bad ? ' bad' : ''); }
 function plan() { return db.plans.find(p => p.id === planId && p.period === period); }
@@ -77,6 +77,8 @@ function render() {
         renderSchedule();
     else if (page === 'backup')
         renderBackup();
+    else if (page === 'about')
+        renderAbout();
     else if (page === 'periods')
         renderPeriods();
     else
@@ -131,7 +133,7 @@ function renderTables() {
     $$('[data-lock]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (busy || saving)
         return; const n = structuredClone(db), p2 = n.plans.find(x => x.id === planId)!; const l = p2.lessons.find(x => x.id === b.dataset.lock)!; l.locked = !l.locked; await save(n, 'Antes de fixar/destravar aula'); undo = []; render(); });
     $$('[draggable=true]').forEach(el => {
-        el.ondragstart = e => { dragId = el.dataset.lesson!; e.dataTransfer!.setData('text/plain', dragId); paintTargets(); };
+        el.ondragstart = e => { dragId = el.dataset.lesson!; e.dataTransfer!.setData('text/plain', dragId); const ghost = document.createElement('div'); ghost.className = 'drag-preview'; ghost.textContent = el.querySelector('b')?.textContent || 'Aula'; document.body.append(ghost); e.dataTransfer!.setDragImage(ghost, 0, 0); setTimeout(() => ghost.remove(), 0); paintTargets(); };
         el.ondragend = clearDrag;
         el.onclick = e => { e.stopPropagation(); if (busy)
             return; const id = el.dataset.lesson!; if (dragId) {
@@ -151,7 +153,7 @@ function renderTables() {
     $$('td[data-cohort]').forEach(cell => {
         cell.tabIndex = 0;
         const show = (e: MouseEvent) => { if (!dragId)
-            return; const r = checkDrop(cell); $('#tip').hidden = false; $('#tip').textContent = dropText(r); $('#tip').style.left = Math.max(10, Math.min(e.clientX + 15, window.innerWidth - 370)) + 'px'; $('#tip').style.top = Math.max(10, Math.min(e.clientY + 15, window.innerHeight - 180)) + 'px'; };
+            return; const r = checkDrop(cell); $('#tip').hidden = false; $('#tip').textContent = dropText(r); positionDropTip(e.clientX, e.clientY); };
         cell.ondragover = e => { if (dragId) {
             e.preventDefault();
             show(e);
@@ -419,17 +421,18 @@ catch (e) {
     notice('Falha ao abrir os dados: ' + String(e), true);
 } })();
 
-if (window.desktop?.updateState) {
+function initUpdateControls(dialog: HTMLDialogElement) {
+    if (!window.desktop?.updateState) return;
     const status = document.createElement('div'); status.className = 'panel no-print'; status.setAttribute('role', 'status');
     const message = document.createElement('span');
     const check = document.createElement('button'); check.textContent = 'Verificar atualizações';
     const install = document.createElement('button'); install.textContent = 'Instalar e reiniciar'; install.hidden = true;
-    status.append(message, check, install); document.querySelector('main')!.prepend(status);
-    const show = (s: {text: string; ready: boolean}) => { message.textContent = s.text + ' '; install.hidden = !s.ready; };
+    status.append(message, check, install); dialog.querySelector('#release-intro')!.after(status);
+    const show = (s: {text: string; ready: boolean; available?: boolean}) => { message.textContent = s.text + ' '; install.hidden = !s.ready; const available = !!s.available || s.ready; const version = $('#app-version'); version.classList.toggle('update-available', available); version.textContent = `Versão ${ReleaseHistory.version} · ${available ? '! Atualização disponível' : 'Ver mudanças'}`; version.setAttribute('aria-label', version.textContent); version.title = available ? s.text : 'Histórico de atualizações'; };
     window.desktop.onUpdate?.(show); window.desktop.updateState().then(show).catch(() => {});
     check.onclick = async () => { check.disabled = true; try { await window.desktop!.checkUpdates!(); } finally { check.disabled = false; } };
     install.onclick = async () => {
-        if (busy || saving || document.querySelector('dialog[open]')) { notice('Termine a geração, o salvamento ou a edição aberta antes de instalar.', true); return; }
+        if (busy || saving || document.querySelector('dialog[open]:not(#release-history)')) { notice('Termine a geração, o salvamento ou a edição aberta antes de instalar.', true); return; }
         document.body.inert = true;
         try { await window.desktop!.installUpdate!(); } catch { notice('Não foi possível instalar a atualização.', true); }
         finally { document.body.inert = false; }
@@ -459,6 +462,7 @@ async function initReleaseHistory() {
         list.append(details);
     }
     document.body.append(dialog);
+    initUpdateControls(dialog);
     const open = (automatic: boolean) => {
         if (dialog.open) return;
         dialog.querySelector('#release-title')!.textContent = automatic ? 'O que mudou no CelGrade LM' : 'Histórico de atualizações';
@@ -507,4 +511,18 @@ function openRoomEditor(id: string) {
         catch (error) { status.textContent = 'Não foi possível salvar: '+String(error); status.className='bad'; committing=false; cancel.disabled=false; submit.disabled=false; select.disabled=false; }
     };
     preview(); dialog.showModal(); select.focus();
+}
+
+
+function positionDropTip(x: number, y: number) {
+    const tip = $('#tip'), rect = tip.getBoundingClientRect(), gap = 24;
+    // Keep the message above the pointer; the compact drag preview starts below it.
+    const left = Math.max(10, Math.min(x - rect.width / 2, window.innerWidth - rect.width - 10));
+    let top = y - rect.height - gap;
+    if (top < 10) { top = 10; tip.style.left = Math.max(10, x - rect.width - gap) + 'px'; }
+    else tip.style.left = left + 'px';
+    tip.style.top = Math.max(10, Math.min(top, window.innerHeight - rect.height - 10)) + 'px';
+}
+function renderAbout() {
+    $('#content').innerHTML = `<article class="panel about"><span class="tag">CelGrade LM</span><h2>Feito para facilitar o planejamento acadêmico</h2><p>Uma ferramenta criada para apoiar a organização dos horários, reduzir conflitos e dar mais espaço ao cuidado com cada estudante.</p><h3>Desenvolvedores</h3><p><strong>Luiz Vicente Gomes Jirardi</strong><br><strong>MARCUS VINICIUS MAGALHÃES FRANÇA FILHO</strong></p><p>Estudantes do 6º semestre de Ciência da Computação na Universidade Estadual do Sudoeste da Bahia (UESB).</p><h3>Incentivo ao projeto</h3><p>Este projeto foi incentivado pelo professor <strong>Roque Mendes Prado Trindade</strong>, aproximando o aprendizado em sala de aula de uma necessidade real da comunidade acadêmica.</p><blockquote><h3>À Celina</h3><p>Dedicamos esta ferramenta à Celina, em reconhecimento ao cuidado, à dedicação e à paciência com que organiza os horários a cada semestre. Que o CelGrade LM torne esse trabalho mais leve e ajude a transformar os desafios de cada grade em novas possibilidades para os estudantes.</p></blockquote></article>`;
 }

@@ -17,3 +17,6 @@ test('no available release does not download',async()=>{const h=harness({availab
 
 
 test('download rejection without error event allows retry',async()=>{const h=harness({answers:[1,1]});let tries=0;h.updater.downloadUpdate=async()=>{if(++tries===1)throw Error('network');h.updater.emit('update-downloaded')};await h.handlers['update-check']();await h.handlers['update-check']();assert.equal(tries,2);assert.equal(h.handlers['update-state']().ready,true)});
+
+
+test('postponing download retains available status for version badge',async()=>{const h=harness({answers:[0]});await h.handlers['update-check']();assert.equal(h.handlers['update-state']().available,true);assert.equal(h.handlers['update-state']().ready,false);assert.deepEqual(h.calls,[])});

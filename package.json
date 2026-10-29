@@ -1,7 +1,7 @@
 {
   "name": "celgrade-lm",
   "productName": "CelGrade LM",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "main": "dist/main.js",
   "scripts": {
@@ -21,7 +21,7 @@
   "dependencies": {
     "electron-updater": "6.6.2"
   },
-  "description": "Planejamento de hor\u00e1rios acad\u00eamicos",
+  "description": "Planejamento de horários acadêmicos",
   "author": "Luiz Jirardi",
   "build": {
     "appId": "br.com.celgrade.lm",

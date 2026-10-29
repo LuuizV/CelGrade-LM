@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.7.0",
+    "date": "2026-10-29",
+    "title": "Interface mais limpa e créditos",
+    "changes": {
+      "Novidades": [
+        "Verificação e instalação de atualizações dentro dos detalhes da versão.",
+        "Botão da versão vermelho com exclamação quando há atualização disponível.",
+        "Nova aba Sobre com desenvolvedores, incentivo do professor e dedicatória à Celina."
+      ],
+      "Melhorias": [
+        "Removido o menu padrão do Electron.",
+        "Aviso de destino acima do arraste e prévia compacta da disciplina."
+      ]
+    }
+  },
+  {
     "version": "0.6.0",
     "date": "2026-10-29",
     "title": "Troca de sala pelo botão direito",

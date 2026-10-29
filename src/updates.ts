@@ -8,8 +8,8 @@ export function setupUpdates(win: BrowserWindow, store: Store) {
     let available = false;
     autoUpdater.on('update-available', () => { available = true; });
     let checking = false, downloading = false, ready = false, installing = false;
-    let state = { text: 'Versão ' + app.getVersion(), ready: false };
-    const send = (text: string) => { state = { text, ready }; if (!win.isDestroyed()) win.webContents.send('update-status', state); };
+    let state = { text: 'Versão ' + app.getVersion(), ready: false, available: false };
+    const send = (text: string) => { state = { text, ready, available }; if (!win.isDestroyed()) win.webContents.send('update-status', state); };
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.allowPrerelease = false;
@@ -25,6 +25,7 @@ export function setupUpdates(win: BrowserWindow, store: Store) {
             if (manual) send('Verificando atualizações…');
             const result = await autoUpdater.checkForUpdates();
             if (!result || !available) { if (manual) send('Você já está usando a versão atual: ' + app.getVersion()); return; }
+            send(`Nova versão ${result.updateInfo.version} disponível.`);
             const answer = await dialog.showMessageBox(win, { type: 'info', title: 'CelGrade LM — nova versão', message: `A versão ${result.updateInfo.version} está disponível. Deseja baixar?`, detail: 'Você poderá continuar trabalhando durante o download. A instalação só acontecerá quando você escolher reiniciar.', buttons: ['Agora não', 'Baixar atualização'], defaultId: 0, cancelId: 0 });
             if (answer.response === 1) { downloading = true; send('Iniciando download…'); await autoUpdater.downloadUpdate(); }
         } catch { downloading = false; if (!win.isDestroyed()) win.setProgressBar(-1); send('Não foi possível consultar ou baixar atualizações. O programa continua disponível.'); }
@@ -50,4 +51,5 @@ export function setupUpdates(win: BrowserWindow, store: Store) {
     });
     win.webContents.once('did-finish-load', () => { send(state.text); if (enabled) void check(false); });
 }
+
 
