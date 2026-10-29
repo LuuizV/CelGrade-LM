@@ -87,12 +87,10 @@ function renderSchedule() {
     if (!plan())
         planId = plans.at(-1)?.id || '';
     const p = plan();
-    $('#content').innerHTML = `<div class="panel no-print"><div class="actions">${button('generate', '✦ Gerar outra alternativa', 'primary')}<select id="plans"><option value="">Selecione uma grade</option>${options(plans, planId)}</select>${button('undo', 'Desfazer movimento')}${button('rename-plan', 'Renomear')}${button('cancel-generation', 'Cancelar busca')}${button('pdf', 'Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select><label class="room-choice">Sala de destino<select id="move-room"><option value="">Manter a sala atual</option>${options(db.rooms, '')}</select></label></div><p class="muted">As grades anteriores são preservadas. 🔒 fixa uma aula na próxima geração. Arraste uma aula ou clique nela e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Duplas se movem juntas.</p>${!db.offers.length ? button('demo', 'Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
+    $('#content').innerHTML = `<div class="panel no-print"><div class="actions">${button('generate', '✦ Gerar outra alternativa', 'primary')}<select id="plans"><option value="">Selecione uma grade</option>${options(plans, planId)}</select>${button('undo', 'Desfazer movimento')}${button('rename-plan', 'Renomear')}${button('cancel-generation', 'Cancelar busca')}${button('pdf', 'Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div><p class="muted">As grades anteriores são preservadas. 🔒 fixa uma aula na próxima geração. Arraste uma aula ou clique nela e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Duplas se movem juntas. Clique com o botão direito na aula para alterar sua sala.</p>${!db.offers.length ? button('demo', 'Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
     $('#generate').onclick = generate;
     $('#cancel-generation').hidden = true;
     $<HTMLSelectElement>('#view').value = selectedView;
-    $('#move-room').onchange = () => { if (dragId)
-        paintTargets(); };
     $('#rename-plan').onclick = renamePlan;
     $('#plans').onchange = e => { planId = (e.target as HTMLSelectElement).value; undo = []; render(); };
     $('#undo').onclick = undoMove;
@@ -125,7 +123,11 @@ function renderTables() {
         groups = db.teachers.filter(t => p.lessons.some(l => db.offers.find(o => o.id === l.offer)?.teacher === t.id)).map(t => ({ id: t.id, title: t.name, lessons: p.lessons.filter(l => db.offers.find(o => o.id === l.offer)?.teacher === t.id) }));
     if (mode === 'graduate')
         groups = Core.graduateReport(db, p).map(g => ({ id: g.id, title: g.name + (g.ok ? '' : ' · atendimento parcial'), lessons: p.lessons.filter(l => g.offers.includes(l.offer)) }));
-    $('#tables').innerHTML = groups.map(g => `<article class="panel"><h2>${esc(g.title)} <span class="tag">${period}</span></h2><p class="muted">CelGrade LM · ${esc(p.name)}</p>${mode === 'graduate' ? graduateNote(g.id, p) : ''}<div class="print-warning">${[...Core.hardIssues(db, p.lessons), ...Core.completeness(db, p)].length ? 'RASCUNHO — esta grade contém conflitos ou cargas incompletas.' : ''}</div><div class="scroll"><table class="grid"><thead><tr><th>Horário</th>${days.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${Core.times.map((t, slot) => `${slot === 2 ? '<tr class="break"><td colspan="6">09:10–09:20 · INTERVALO</td></tr>' : ''}<tr><td class="time">${t}</td>${days.map((_, day) => { const ls = g.lessons.filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length); return `<td data-cohort="${mode === 'cohort' ? esc(g.id) : ''}" data-day="${day}" data-slot="${slot}">${ls.map(l => { const o = db.offers.find(o => o.id === l.offer)!; return `<div class="lesson" tabindex="0" role="button" aria-label="Selecionar aula" draggable="${mode === 'cohort' && !l.locked}" data-lesson="${l.id}">${slot === l.slot ? `<button data-lock="${l.id}" title="Fixar ou destravar aula">${l.locked ? '🔒' : '🔓'}</button>` : ''}<b>${esc(name('subjects', o.subject))}</b><small>${esc(name('teachers', o.teacher))}<br>${esc(name('rooms', l.room))} · ${l.length === 2 ? 'dupla' : 'aula'}</small></div>`; }).join('') || '<div class="free">—</div>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div></article>`).join('') || '<div class="panel">Nenhum registro para esta visualização.</div>';
+    $('#tables').innerHTML = groups.map(g => `<article class="panel"><h2>${esc(g.title)} <span class="tag">${period}</span></h2><p class="muted">CelGrade LM · ${esc(p.name)}</p>${mode === 'graduate' ? graduateNote(g.id, p) : ''}<div class="print-warning">${[...Core.hardIssues(db, p.lessons), ...Core.completeness(db, p)].length ? 'RASCUNHO — esta grade contém conflitos ou cargas incompletas.' : ''}</div><div class="scroll"><table class="grid"><thead><tr><th>Horário</th>${days.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${Core.times.map((t, slot) => `${slot === 2 ? '<tr class="break"><td colspan="6">09:10–09:20 · INTERVALO</td></tr>' : ''}<tr><td class="time">${t}</td>${days.map((_, day) => { const ls = g.lessons.filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length); return `<td data-cohort="${mode === 'cohort' ? esc(g.id) : ''}" data-day="${day}" data-slot="${slot}">${ls.map(l => { const o = db.offers.find(o => o.id === l.offer)!; return `<div class="lesson" tabindex="0" role="button" aria-label="Selecionar aula; botão direito ou Shift+F10 para alterar sala" draggable="${mode === 'cohort' && !l.locked}" data-lesson="${l.id}">${slot === l.slot ? `<button data-lock="${l.id}" title="Fixar ou destravar aula">${l.locked ? '🔒' : '🔓'}</button>` : ''}<b>${esc(name('subjects', o.subject))}</b><small>${esc(name('teachers', o.teacher))}<br>${esc(name('rooms', l.room))} · ${l.length === 2 ? 'dupla' : 'aula'}</small></div>`; }).join('') || '<div class="free">—</div>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div></article>`).join('') || '<div class="panel">Nenhum registro para esta visualização.</div>';
+    $$('[data-lesson]').forEach(el => {
+        el.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); openRoomEditor(el.dataset.lesson!); };
+        el.addEventListener('keydown', e => { if (e.target === el && (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10'))) { e.preventDefault(); e.stopPropagation(); openRoomEditor(el.dataset.lesson!); } });
+    });
     $$('[data-lock]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (busy || saving)
         return; const n = structuredClone(db), p2 = n.plans.find(x => x.id === planId)!; const l = p2.lessons.find(x => x.id === b.dataset.lock)!; l.locked = !l.locked; await save(n, 'Antes de fixar/destravar aula'); undo = []; render(); });
     $$('[draggable=true]').forEach(el => {
@@ -171,7 +173,7 @@ function dropText(r: ReturnType<typeof Core.move>) { return r.red.length ? r.red
 function checkDrop(cell: HTMLElement) { const cached = dropCache.get(cell); if (cached)
     return cached; const p = plan()!, l = p.lessons.find(x => x.id === dragId); if (!l)
     return { plan: p, red: ['Aula não encontrada'], yellow: [] }; const o = db.offers.find(x => x.id === l.offer)!; if (cell.dataset.cohort !== o.cohort)
-    return { plan: p, red: ['Mova dentro da mesma turma. A oferta não muda de turma pelo arraste.'], yellow: [] }; return Core.move(db, p, l.id, +cell.dataset.day!, +cell.dataset.slot!, $<HTMLSelectElement>('#move-room').value || l.room); }
+    return { plan: p, red: ['Mova dentro da mesma turma. A oferta não muda de turma pelo arraste.'], yellow: [] }; return Core.move(db, p, l.id, +cell.dataset.day!, +cell.dataset.slot!, l.room); }
 function paintTargets() { dropCache.clear(); $$('td[data-cohort]').forEach(c => { c.classList.remove('red', 'yellow', 'green'); const r = checkDrop(c); dropCache.set(c, r); c.classList.add(r.red.length ? 'red' : r.yellow.length ? 'yellow' : 'green'); c.title = dropText(r); }); $$('[data-lesson]').forEach(el => el.classList.toggle('selected', el.dataset.lesson === dragId)); }
 function clearDrag() { dragId = ''; dropCache.clear(); $('#tip').hidden = true; $$('td[data-cohort]').forEach(c => { c.classList.remove('red', 'yellow', 'green'); c.removeAttribute('title'); }); $$('.lesson.selected').forEach(c => c.classList.remove('selected')); }
 window.addEventListener('keydown', e => { if (e.key === 'Escape')
@@ -471,4 +473,38 @@ async function initReleaseHistory() {
     });
     button.onclick = () => open(false);
     if (unread.length && !document.querySelector('dialog[open]')) open(true);
+}
+
+
+function openRoomEditor(id: string) {
+    if (busy || saving || document.querySelector('dialog[open]')) return;
+    clearDrag();
+    const current = plan(), lesson = current?.lessons.find(l => l.id === id);
+    if (!current || !lesson) return;
+    if (lesson.locked) { notice('Destrave a aula antes de alterar a sala.', true); return; }
+    const selectedPlan = current.id;
+    const dialog = document.createElement('dialog'); dialog.id = 'room-editor'; dialog.setAttribute('aria-labelledby','room-title');
+    dialog.innerHTML = `<h2 id="room-title">Alterar sala da aula</h2><p>O horário e a turma serão mantidos. A mudança vale para todo o bloco da aula.</p><label>Nova sala<select id="room-select">${options(db.rooms,lesson.room)}</select></label><p id="room-status" role="status"></p><div class="actions"><button id="room-cancel" type="button">Cancelar</button><button id="room-save" type="button" class="primary">Salvar sala</button></div>`;
+    document.body.append(dialog);
+    const select = dialog.querySelector<HTMLSelectElement>('#room-select')!, submit = dialog.querySelector<HTMLButtonElement>('#room-save')!, status = dialog.querySelector<HTMLElement>('#room-status')!;
+    const check = () => { const p = plan(); return !p || p.id !== selectedPlan ? null : Core.changeRoom(db,p,id,select.value); };
+    const preview = () => { const result = check(); status.textContent = result ? result.red.join('; ') || 'Sala disponível para este bloco.' : 'A grade mudou. Feche e tente novamente.'; status.className = !result || result.red.length ? 'bad' : 'ok'; submit.disabled = !result || !!result.red.length || select.value === lesson.room; };
+    select.onchange = preview;
+    const cancel = dialog.querySelector<HTMLButtonElement>('#room-cancel')!;
+    let committing = false;
+    cancel.onclick = () => { if (!committing) dialog.close(); };
+    dialog.addEventListener('cancel', e => { if (committing) e.preventDefault(); });
+    dialog.addEventListener('close', () => dialog.remove(), {once:true});
+    submit.onclick = async () => {
+        if (busy || saving) return;
+        const result = check();
+        if (!result || result.red.length) { preview(); return; }
+        const previous = structuredClone(plan()!);
+        if (Core.signature(previous) === Core.signature(result.plan)) { dialog.close(); return; }
+        committing = true; cancel.disabled = true; submit.disabled = true; select.disabled = true;
+        const n = structuredClone(db); n.plans = n.plans.map(p => p.id === selectedPlan ? result.plan : p);
+        try { await save(n,'Antes de alterar sala'); undo.push(previous); if(undo.length>30)undo.shift(); dialog.close(); render(); notice('Sala alterada. O horário e a turma foram mantidos.'); }
+        catch (error) { status.textContent = 'Não foi possível salvar: '+String(error); status.className='bad'; committing=false; cancel.disabled=false; submit.disabled=false; select.disabled=false; }
+    };
+    preview(); dialog.showModal(); select.focus();
 }

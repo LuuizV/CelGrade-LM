@@ -1,6 +1,92 @@
 [
-  {"version":"0.5.0","date":"2026-10-29","title":"Histórico de versões e novidades ao atualizar","changes":{"Novidades":["Clique no número da versão, no canto inferior esquerdo, para consultar o histórico de mudanças.","Na primeira abertura após atualizar, o aplicativo apresenta as novidades e correções ainda não vistas.","O histórico fica disponível mesmo sem internet."],"Melhorias":["As novidades são agrupadas por versão e categoria, da mais recente para a mais antiga.","Ao fechar as novidades, o aplicativo registra a leitura neste computador e não repete o aviso na próxima abertura.","Se você pular versões, poderá consultar todas as mudanças desde a última versão vista."],"Correções":["O painel de atualização não aparece mais na impressão ou no PDF.","O número exibido no canto passa a acompanhar automaticamente a versão do instalador."]}},
-  {"version":"0.4.0","date":"2026-10-29","title":"Instalador e atualizações pelo GitHub","changes":{"Novidades":["Instalador para Windows com consulta de novas versões ao abrir.","Confirmação antes de baixar a atualização e antes de reiniciar para instalar.","Botão para verificar atualizações manualmente.","Backup JSON antes da instalação; falha no backup impede a instalação."],"Melhorias":["O aplicativo continua disponível sem internet.","A instalação fica bloqueada enquanto houver geração, salvamento ou edição aberta."]}},
-  {"version":"0.3.0","date":"2026-10-28","title":"Geração, recuperação e edição da grade","changes":{"Melhorias":["Gerador compara até seis alternativas e prioriza o atendimento dos formandos.","Recuperação dos últimos 30 salvamentos, incluindo o estado anterior à restauração de um backup.","Movimentação por clique ou arraste, com escolha da sala destino.","Cancelamento da busca e renomeação de alternativas.","PDF indica rascunho quando existem conflitos ou carga horária incompleta."],"Correções":["Pendências antigas de formandos deixam de causar alertas em movimentos sem relação com elas.","É possível corrigir uma aula mesmo quando há outro conflito independente na grade."]}},
-  {"version":"0.2.0","date":"2026-10-28","title":"CelGrade LM para desktop","changes":{"Novidades":["Aplicativo para Windows com dados locais em SQLite e backup JSON.","Cadastros de salas, professores, disciplinas, turmas, ofertas e formandos.","Separação entre etapa do curso e período letivo.","Geração de alternativas de grade com aulas fixas e verificação de conflitos.","Edição manual com bloqueios vermelhos e conflitos de formandos em amarelo, mediante confirmação.","Exportação de grades em PDF."]}}
+  {
+    "version": "0.6.0",
+    "date": "2026-10-29",
+    "title": "Troca de sala pelo botão direito",
+    "changes": {
+      "Novidades": [
+        "Clique com o botão direito na aula para alterar a sala sem mudar o horário ou a turma.",
+        "A troca verifica disponibilidade e conflitos de todo o bloco, inclusive aulas duplas, e pode ser desfeita.",
+        "O atalho Shift+F10 também abre a troca de sala."
+      ],
+      "Melhorias": [
+        "Removida a opção global Sala de destino. Arrastar uma aula mantém sua sala."
+      ],
+      "Correções": [
+        "Datas das versões 0.2 e 0.3 corrigidas para 19/10/2026.",
+        "Falha no download da atualização permite tentar novamente, mesmo quando não há evento de erro do atualizador."
+      ]
+    }
+  },
+  {
+    "version": "0.5.0",
+    "date": "2026-10-29",
+    "title": "Histórico de versões e novidades ao atualizar",
+    "changes": {
+      "Novidades": [
+        "Clique no número da versão, no canto inferior esquerdo, para consultar o histórico de mudanças.",
+        "Na primeira abertura após atualizar, o aplicativo apresenta as novidades e correções ainda não vistas.",
+        "O histórico fica disponível mesmo sem internet."
+      ],
+      "Melhorias": [
+        "As novidades são agrupadas por versão e categoria, da mais recente para a mais antiga.",
+        "Ao fechar as novidades, o aplicativo registra a leitura neste computador e não repete o aviso na próxima abertura.",
+        "Se você pular versões, poderá consultar todas as mudanças desde a última versão vista."
+      ],
+      "Correções": [
+        "O painel de atualização não aparece mais na impressão ou no PDF.",
+        "O número exibido no canto passa a acompanhar automaticamente a versão do instalador."
+      ]
+    }
+  },
+  {
+    "version": "0.4.0",
+    "date": "2026-10-29",
+    "title": "Instalador e atualizações pelo GitHub",
+    "changes": {
+      "Novidades": [
+        "Instalador para Windows com consulta de novas versões ao abrir.",
+        "Confirmação antes de baixar a atualização e antes de reiniciar para instalar.",
+        "Botão para verificar atualizações manualmente.",
+        "Backup JSON antes da instalação; falha no backup impede a instalação."
+      ],
+      "Melhorias": [
+        "O aplicativo continua disponível sem internet.",
+        "A instalação fica bloqueada enquanto houver geração, salvamento ou edição aberta."
+      ]
+    }
+  },
+  {
+    "version": "0.3.0",
+    "date": "2026-10-19",
+    "title": "Geração, recuperação e edição da grade",
+    "changes": {
+      "Melhorias": [
+        "Gerador compara até seis alternativas e prioriza o atendimento dos formandos.",
+        "Recuperação dos últimos 30 salvamentos, incluindo o estado anterior à restauração de um backup.",
+        "Movimentação por clique ou arraste, com escolha da sala destino.",
+        "Cancelamento da busca e renomeação de alternativas.",
+        "PDF indica rascunho quando existem conflitos ou carga horária incompleta."
+      ],
+      "Correções": [
+        "Pendências antigas de formandos deixam de causar alertas em movimentos sem relação com elas.",
+        "É possível corrigir uma aula mesmo quando há outro conflito independente na grade."
+      ]
+    }
+  },
+  {
+    "version": "0.2.0",
+    "date": "2026-10-19",
+    "title": "CelGrade LM para desktop",
+    "changes": {
+      "Novidades": [
+        "Aplicativo para Windows com dados locais em SQLite e backup JSON.",
+        "Cadastros de salas, professores, disciplinas, turmas, ofertas e formandos.",
+        "Separação entre etapa do curso e período letivo.",
+        "Geração de alternativas de grade com aulas fixas e verificação de conflitos.",
+        "Edição manual com bloqueios vermelhos e conflitos de formandos em amarelo, mediante confirmação.",
+        "Exportação de grades em PDF."
+      ]
+    }
+  }
 ]

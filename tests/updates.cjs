@@ -14,3 +14,6 @@ test('backup is synced before explicitly confirmed installation',async()=>{const
 test('backup failure prevents installation',async()=>{const h=harness({answers:[1,1],failBackup:true});await h.handlers['update-check']();assert.equal(await h.handlers['update-install'](),false);assert.deepEqual(h.calls,['download'])});
 test('cancel installation preserves downloaded update',async()=>{const h=harness({answers:[1,0]});await h.handlers['update-check']();await h.handlers['update-install']();assert.deepEqual(h.calls,['download']);assert.equal(h.handlers['update-state']().ready,true)});
 test('no available release does not download',async()=>{const h=harness({available:false,answers:[1]});await h.handlers['update-check']();assert.deepEqual(h.calls,[])});
+
+
+test('download rejection without error event allows retry',async()=>{const h=harness({answers:[1,1]});let tries=0;h.updater.downloadUpdate=async()=>{if(++tries===1)throw Error('network');h.updater.emit('update-downloaded')};await h.handlers['update-check']();await h.handlers['update-check']();assert.equal(tries,2);assert.equal(h.handlers['update-state']().ready,true)});

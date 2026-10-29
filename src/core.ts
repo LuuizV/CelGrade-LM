@@ -216,6 +216,16 @@ export function move(d: DB, p: Plan, id: string, day: number, slot: number, room
     const yellow = red.length ? [] : graduateChanges(d, p, next);
     return { plan: next, red, yellow };
 }
+/** Change only the room of one complete lesson block, never swap other lessons. */
+export function changeRoom(d: DB, p: Plan, id: string, room: string) {
+    const next = structuredClone(p), lesson = next.lessons.find(l => l.id === id);
+    const blocked = (reason: string) => ({ plan: next, red: [reason], yellow: [] as string[] });
+    if (!lesson) return blocked('Aula não encontrada.');
+    if (!d.rooms.some(r => r.id === room)) return blocked('Sala não encontrada.');
+    if (lesson.locked) return blocked('Destrave a aula antes de alterar a sala.');
+    lesson.room = room;
+    return { plan: next, red: hardIssues(d, next.lessons, new Set([id])), yellow: [] as string[] };
+}
 /** Bounded randomized backtracking with 30-bit availability and occupancy masks. */
 export function generate(d: DB, period: string, base: Plan | undefined, seed: number): Plan {
     validate(d);
@@ -369,3 +379,4 @@ export function generate(d: DB, period: string, base: Plan | undefined, seed: nu
 }
 export function signature(p: Plan) { return p.lessons.flatMap(l => Array.from({ length: l.length }, (_, k) => [l.offer, l.day, l.slot + k, l.room].join(':'))).sort().join('|'); }
 export function demo(): DB { const d = empty(); const all = () => Array(30).fill(1); d.rooms = [{ id: 'r1', name: 'Sala 101', available: all() }, { id: 'r2', name: 'Laboratório', available: all() }]; d.teachers = [{ id: 't1', name: 'Ana Oliveira', available: all() }, { id: 't2', name: 'Carlos Santos', available: all() }]; d.subjects = [{ id: 's1', name: 'Algoritmos' }, { id: 's2', name: 'Cálculo I' }, { id: 's3', name: 'Banco de Dados' }]; d.cohorts = [{ id: 'c1', name: 'Computação A', stage: 1, room: 'r1' }, { id: 'c2', name: 'Computação B', stage: 5, room: 'r2' }]; d.offers = [{ id: 'o1', subject: 's1', teacher: 't1', cohort: 'c1', period: '2027.1', load: 4 }, { id: 'o2', subject: 's2', teacher: 't2', cohort: 'c1', period: '2027.1', load: 4 }, { id: 'o3', subject: 's3', teacher: 't1', cohort: 'c2', period: '2027.1', load: 4 }]; d.graduates = [{ id: 'g1', name: 'João (exemplo)', period: '2027.1', subjects: ['s2', 's3'], active: true }]; return d; }
+

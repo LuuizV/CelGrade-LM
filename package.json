@@ -1,7 +1,7 @@
 {
   "name": "celgrade-lm",
   "productName": "CelGrade LM",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "main": "dist/main.js",
   "scripts": {

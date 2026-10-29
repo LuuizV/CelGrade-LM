@@ -1,4 +1,4 @@
-# CelGrade LM 0.5
+# CelGrade LM 0.6
 
 Atualizações automáticas com consentimento e instalador Windows. Consulte [ATUALIZACOES.md](ATUALIZACOES.md) para instalação, publicação e limitações.
 
@@ -126,3 +126,6 @@ Os comandos de instalação e empacotamento podem baixar dependências. O aplica
 - `scripts/build-web.cjs`: preparação dos scripts da interface e worker.
 - `scripts/package-win.cjs`: empacotamento Windows x64.
 - `tests/core.cjs`, `tests/regression.cjs`, `tests/dom.cjs`: testes automatizados.
+
+
+Na versão 0.6, altere a sala clicando com o botão direito sobre a aula (ou Shift+F10). A alteração preserva horário e turma, valida o bloco inteiro e permite Desfazer. Aulas fixas precisam ser destravadas.

@@ -27,7 +27,7 @@ export function setupUpdates(win: BrowserWindow, store: Store) {
             if (!result || !available) { if (manual) send('Você já está usando a versão atual: ' + app.getVersion()); return; }
             const answer = await dialog.showMessageBox(win, { type: 'info', title: 'CelGrade LM — nova versão', message: `A versão ${result.updateInfo.version} está disponível. Deseja baixar?`, detail: 'Você poderá continuar trabalhando durante o download. A instalação só acontecerá quando você escolher reiniciar.', buttons: ['Agora não', 'Baixar atualização'], defaultId: 0, cancelId: 0 });
             if (answer.response === 1) { downloading = true; send('Iniciando download…'); await autoUpdater.downloadUpdate(); }
-        } catch { send('Não foi possível consultar ou baixar atualizações. O programa continua disponível.'); }
+        } catch { downloading = false; if (!win.isDestroyed()) win.setProgressBar(-1); send('Não foi possível consultar ou baixar atualizações. O programa continua disponível.'); }
         finally { checking = false; }
     }
     ipcMain.handle('update-state', () => state);
@@ -50,3 +50,4 @@ export function setupUpdates(win: BrowserWindow, store: Store) {
     });
     win.webContents.once('did-finish-load', () => { send(state.text); if (enabled) void check(false); });
 }
+
