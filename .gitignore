@@ -1,0 +1,9 @@
+node_modules/
+dist/
+release/
+releases/
+*.sqlite*
+*.json.bak
+.env*
+*.pfx
+*.p12

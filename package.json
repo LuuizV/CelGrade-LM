@@ -1,0 +1,62 @@
+{
+  "name": "celgrade-lm",
+  "productName": "CelGrade LM",
+  "version": "0.4.0",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc && node scripts/build-web.cjs",
+    "start": "npm run build && electron .",
+    "test": "npm run build && node --test tests/core.cjs tests/regression.cjs tests/dom.cjs tests/updates.cjs",
+    "package:win": "npm run build && electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "@electron/packager": "^19.0.0",
+    "@types/node": "^24.0.0",
+    "electron": "45.1.0",
+    "electron-builder": "26.0.12",
+    "jsdom": "^30.1.3",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "electron-updater": "6.6.2"
+  },
+  "description": "Planejamento de hor\u00e1rios acad\u00eamicos",
+  "author": "Luiz Jirardi",
+  "build": {
+    "appId": "br.com.celgrade.lm",
+    "productName": "CelGrade LM",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*.js",
+      "web/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "CelGrade-LM-Setup-${version}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "LuuizV",
+        "repo": "CelGrade-LM-Releases",
+        "private": false,
+        "releaseType": "release"
+      }
+    ]
+  }
+}
