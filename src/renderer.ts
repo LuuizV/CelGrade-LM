@@ -524,5 +524,34 @@ function positionDropTip(x: number, y: number) {
     tip.style.top = Math.max(10, Math.min(top, window.innerHeight - rect.height - 10)) + 'px';
 }
 function renderAbout() {
-    $('#content').innerHTML = `<article class="panel about"><span class="tag">CelGrade LM</span><h2>Feito para facilitar o planejamento acadêmico</h2><p>Uma ferramenta criada para apoiar a organização dos horários, reduzir conflitos e dar mais espaço ao cuidado com cada estudante.</p><h3>Desenvolvedores</h3><p><strong>Luiz Vicente Gomes Jirardi</strong><br><strong>MARCUS VINICIUS MAGALHÃES FRANÇA FILHO</strong></p><p>Estudantes do 6º semestre de Ciência da Computação na Universidade Estadual do Sudoeste da Bahia (UESB).</p><h3>Incentivo ao projeto</h3><p>Este projeto foi incentivado pelo professor <strong>Roque Mendes Prado Trindade</strong>, aproximando o aprendizado em sala de aula de uma necessidade real da comunidade acadêmica.</p><blockquote><h3>À Celina</h3><p>Dedicamos esta ferramenta à Celina, em reconhecimento ao cuidado, à dedicação e à paciência com que organiza os horários a cada semestre. Que o CelGrade LM torne esse trabalho mais leve e ajude a transformar os desafios de cada grade em novas possibilidades para os estudantes.</p></blockquote></article>`;
+    const icon = {
+        code: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg>',
+        cap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5L2 9Z"/><path d="M6 11.5V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-4.5"/><path d="M22 9v6"/></svg>',
+        heart: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5S3.5 15.4 3.5 9.3A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8.5 2.3c0 6.1-8.5 11.2-8.5 11.2Z"/></svg>'
+    };
+    $('#content').innerHTML = `<article class="about">
+<section class="about-hero">
+<span class="about-badge">CelGrade LM</span>
+<h2>Feito para facilitar o planejamento acadêmico</h2>
+<p>Uma ferramenta criada para apoiar a organização dos horários, reduzir conflitos e dar mais espaço ao cuidado com cada estudante.</p>
+</section>
+<section class="panel about-section">
+<h3><span class="about-icon">${icon.code}</span>Desenvolvedores</h3>
+<div class="about-people">
+<div class="about-person"><span class="about-avatar" aria-hidden="true">LJ</span><div><strong>Luiz Vicente Gomes Jirardi</strong><small>Desenvolvedor</small></div></div>
+<div class="about-person"><span class="about-avatar" aria-hidden="true">MF</span><div><strong>Marcus Vinicius Magalhães França Filho</strong><small>Desenvolvedor</small></div></div>
+</div>
+<p class="about-note">Estudantes do 6º semestre de Ciência da Computação na Universidade Estadual do Sudoeste da Bahia (UESB).</p>
+</section>
+<section class="panel about-section">
+<h3><span class="about-icon">${icon.cap}</span>Incentivo ao projeto</h3>
+<p>Este projeto foi idealizado e desenvolvido com o incentivo do professor <strong>Roque Mendes Prado Trindade</strong>, no âmbito da disciplina de Análise de Algoritmos, aproximando os conhecimentos adquiridos em sala de aula das necessidades reais da comunidade acadêmica e demonstrando como a tecnologia pode contribuir para solucionar problemas do cotidiano.</p>
+</section>
+<blockquote class="about-dedication">
+<span class="about-heart">${icon.heart}</span>
+<h3>À Celina</h3>
+<p>Dedicamos esta ferramenta à Celina, que, com carinho, paciência e dedicação, trabalha diariamente para tornar a jornada acadêmica dos estudantes mais leve e agradável. Seu compromisso em ajudar a todos faz a diferença nas nossas vidas.</p>
+<p>Que o CelGrade LM possa contribuir para tornar suas tarefas mais simples e menos cansativas, retribuindo, pelo menos um pouco, todo o cuidado e a atenção que você dedica a nós. Esta ferramenta é também uma forma de expressar nossa gratidão por tudo o que você representa para os estudantes.</p>
+</blockquote>
+</article>`;
 }
