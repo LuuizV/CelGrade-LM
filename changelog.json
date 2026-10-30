@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.8.1",
+    "date": "2026-10-30",
+    "title": "Ícones vetoriais consistentes",
+    "changes": {
+      "Visual": [
+        "Ícones de traço fino em SVG para navegação, cadastros e ações, substituindo caracteres e emojis.",
+        "Cadeados e marca do aplicativo harmonizados com a identidade verde e dourada."
+      ]
+    }
+  },
+  {
     "version": "0.8.0",
     "date": "2026-10-29",
     "title": "Identidade institucional e grade mais legível",
