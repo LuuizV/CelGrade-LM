@@ -182,7 +182,6 @@ function printDocument(groups: {id: string; title: string; lessons: Lesson[]}[],
     const lessonList = (lessons: Lesson[], day: number, slot: number) => lessons
         .filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length)
         .sort((a,b) => a.id.localeCompare(b.id));
-    const signature = (lessons: Lesson[]) => lessons.map(l=>l.id).join('|');
     const issues = [...Core.hardIssues(db,p.lessons),...Core.completeness(db,p)];
     const header = '<div class="print-document-header"><div class="print-kicker">PLANEJAMENTO ACADÊMICO</div>' +
         '<h1>Quadro de horários</h1><p>Período letivo ' + esc(period) + ' <span>·</span> ' + esc(p.name) + '</p></div>';
@@ -190,10 +189,6 @@ function printDocument(groups: {id: string; title: string; lessons: Lesson[]}[],
         const rows = Core.times.map((time,slot) => {
             const cells = days.map((_,day) => {
                 const active = lessonList(g.lessons,day,slot);
-                const sig = signature(active);
-                if (sig && slot>0 && sig===signature(lessonList(g.lessons,day,slot-1))) return '';
-                let span=1;
-                if (sig) while(slot+span<Core.times.length && sig===signature(lessonList(g.lessons,day,slot+span))) span++;
                 const contents = active.length ? active.map(l => {
                     const o=db.offers.find(x=>x.id===l.offer);
                     if (!o) return '<div class="print-lesson">Aula sem disciplina cadastrada</div>';
@@ -202,9 +197,12 @@ function printDocument(groups: {id: string; title: string; lessons: Lesson[]}[],
                         '<span>' + esc(name('teachers',o.teacher)) + '</span>' +
                         '<span>' + esc(name('rooms',l.room)) + '</span></div>';
                 }).join('') : '<span class="print-empty">—</span>';
-                return '<td' + (span>1?' rowspan="'+span+'"':'') + '>' + contents + '</td>';
+                return '<td>' + contents + '</td>';
             }).join('');
-            return '<tr><th scope="row">' + esc(time) + '</th>' + cells + '</tr>';
+            const interval = slot === 2
+                ? '<tr class="print-interval" aria-label="Intervalo"><td colspan="6">INTERVALO <span>09:10–09:20</span></td></tr>'
+                : '';
+            return interval + '<tr class="print-slot-row"><th scope="row">' + esc(time) + '</th>' + cells + '</tr>';
         }).join('');
         const status = mode==='graduate' ? Core.graduateReport(db,p).find(r=>r.id===g.id) : null;
         const note = status && !status.ok ? '<p class="print-group-alert">Atendimento parcial: ' + esc(status.reasons.join('; ')) + '</p>' : '';
