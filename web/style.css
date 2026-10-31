@@ -164,3 +164,8 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
   .print-empty{display:block;text-align:center;color:#aab9ac;font-size:10px}
   .print-lesson.subject-0,.print-lesson.subject-1,.print-lesson.subject-2,.print-lesson.subject-3,.print-lesson.subject-4,.print-lesson.subject-5{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
 }
+
+/* A própria lista de alternativas conserva a classificação por cor. */
+.plan-select option[data-status=green]{background-color:#d7efdf;color:#174e35}
+.plan-select option[data-status=yellow]{background-color:#fff0b8;color:#735115}
+.plan-select option[data-status=red]{background-color:#f9d9d6;color:#8a352e}
