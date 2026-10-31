@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.9.5",
+    "date": "2026-10-31",
+    "title": "Identidade Jasmim e interface mais leve",
+    "changes": {
+      "Interface": [
+        "Estilo institucional mais claro e equilibrado, com cartões neutros e verde reservado aos destaques.",
+        "Grandes títulos repetidos removidos, com títulos semânticos preservados para acessibilidade.",
+        "Lema realocado ao lado do nome do aplicativo na barra superior.",
+        "Notificações maiores, centralizadas, com estado visual e botão para fechar."
+      ],
+      "Formandos": [
+        "Painel expansível simplificado sem gráficos, com ícone de formatura restaurado.",
+        "Lista individual de compatibilidade e pendências mantida."
+      ],
+      "Identidade": [
+        "Jasmim adicionado de maneira discreta à marca do CelGrade LM.",
+        "Dedicatória à Celina explica brevemente o simbolismo do jasmim."
+      ]
+    }
+  },
+  {
     "version": "0.9.4",
     "date": "2026-10-31",
     "title": "Painel dos formandos e cartões responsivos",
