@@ -33,6 +33,8 @@ let db: DB, period = '', page = 'schedule', planId = '', busy = false, dragId = 
 let undo: {plan: Plan; cohort: string}[] = [];
 let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 let selectedView = 'cohort', saving = false;
+let graduateExpanded = localStorage.getItem('celgrade-graduates-expanded') !== 'false';
+let chartType: 'bar'|'pie' = localStorage.getItem('celgrade-graduate-chart') === 'pie' ? 'pie' : 'bar';
 let renamingPlan: string | null = null;
 const dropCache = new Map<HTMLElement, ReturnType<typeof Core.move>>();
 const labels: Record<string, string> = { schedule: 'Quadro de horários', rooms: 'Salas', teachers: 'Professores', subjects: 'Disciplinas', cohorts: 'Turmas / etapas', offers: 'Ofertas de disciplinas', graduates: 'Formandos', periods: 'Períodos letivos', backup: 'Dados e backup', about: 'Sobre' };
@@ -189,7 +191,7 @@ function renderSchedule() {
     if (!plan())
         planId = plans.at(-1)?.id || '';
     const p = plan();
-    $('#content').innerHTML = `<div class="panel no-print schedule-tools"><div class="actions"><div class="command-group"><small>GERAÇÃO</small><div class="actions">${button('generate','✦ Gerar outra alternativa','primary')}<select id="plans" aria-label="Selecionar alternativa" class="plan-select"><option value="">Selecione uma grade</option>${plans.map(x=>`<option value="${esc(x.id)}" data-status="${planStatus(x)}" ${x.id===planId?'selected':''}>${planStatus(x)==='green'?'🟢':planStatus(x)==='yellow'?'🟡':'🔴'} ${esc(x.name)}</option>`).join('')}</select>${button('rename-plan','Renomear')}${button('cancel-generation','Cancelar busca')}</div></div><div class="command-group"><small>ALTERNATIVAS</small><div class="actions"><div class="delete-pair"><button id="delete-plan" class="delete-action" type="button" title="Excluir apenas a alternativa selecionada">${navIcons.delete}Excluir uma</button><button id="delete-all-plans" class="delete-action" type="button" title="Excluir todas as alternativas deste período">Excluir todas</button></div></div></div><div class="command-group"><small>EXPORTAÇÃO E VISUALIZAÇÃO</small><div class="actions">${button('pdf','Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div></div></div><p class="muted">As alternativas anteriores são preservadas. O cadeado fixa uma aula. Arraste ou clique na aula e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Botão direito altera a sala.</p>${!db.offers.length ? button('demo','Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
+    $('#content').innerHTML = `<div class="panel no-print schedule-tools"><div class="actions"><div class="command-group"><small>GERAÇÃO</small><div class="actions">${button('generate','✦ Gerar outra alternativa','primary')}<select id="plans" aria-label="Selecionar alternativa" class="plan-select"><option value="">Selecione uma grade</option>${plans.map(x=>`<option value="${esc(x.id)}" data-status="${planStatus(x)}" ${x.id===planId?'selected':''}>${planStatus(x)==='green'?'●':planStatus(x)==='yellow'?'●':'●'} ${esc(x.name)}</option>`).join('')}</select>${button('rename-plan','Renomear')}${button('cancel-generation','Cancelar busca')}</div></div><div class="command-group"><small>ALTERNATIVAS</small><div class="actions"><div class="delete-pair"><button id="delete-plan" class="delete-action" type="button" title="Excluir apenas a alternativa selecionada">${navIcons.delete}Excluir uma</button><button id="delete-all-plans" class="delete-action" type="button" title="Excluir todas as alternativas deste período">Excluir todas</button></div></div></div><div class="command-group"><small>EXPORTAÇÃO E VISUALIZAÇÃO</small><div class="actions">${button('pdf','Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div></div></div><p class="muted">As alternativas anteriores são preservadas. O cadeado fixa uma aula. Arraste ou clique na aula e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Botão direito altera a sala.</p>${!db.offers.length ? button('demo','Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
     $('#generate').onclick = generate;
     $('#cancel-generation').hidden = true;
     $<HTMLSelectElement>('#view').value = selectedView;
@@ -204,11 +206,34 @@ function renderSchedule() {
         $('#demo').onclick = async () => { if (!await confirmInApp('Carregar exemplo', 'Isso substituirá os cadastros e grades atuais.', 'Carregar exemplo', true))
             return; const n = Core.demo(); n.revision = db.revision; await save(n); period = db.periods[0]; render(); };
     if (p) {
-        const q = Core.quality(db, p), reports = Core.graduateReport(db, p), hard = Core.hardIssues(db, p.lessons), missing = Core.completeness(db, p);
-        $('#report').innerHTML = `<div class="panel no-print"><section class="metrics" aria-label="Indicadores do quadro de horários">${metricCard("weekly", "weekly", p.lessons.reduce((n, l) => n + l.length, 0), "Aulas semanais")}${metricCard("graduates", "attended", reports.filter(r => r.ok).length + "/" + reports.length, "Formandos atendidos")}${metricCard("fixed", "lock", p.lessons.filter(l => l.locked).length, "Blocos fixos")}${metricCard("gaps", "gaps", q.gaps, "Janelas nas turmas")}</section>${hard.length || missing.length ? `<section class="diagnostics" role="status"><h3>⚠ Atenção à grade · ${hard.length + missing.length} aviso(s)</h3>${[...hard, ...missing].map(s => `<p>${esc(s)}</p>`).join('')}</section>` : ''}${reports.length ? `<section class="graduate-list"><div class="section-heading"><h3>Formandos · ${reports.filter(r => r.ok).length}/${reports.length} compatíveis</h3><button id="expand-graduates" type="button">Expandir todos</button></div>${reports.map(r => `<details class="summary ${r.ok ? 'ok' : 'warning'}"><summary><span class="avatar" aria-hidden="true">${esc(r.name.slice(0,1))}</span><b>${esc(r.name)}</b><span>${r.ok ? 'Disciplinas compatíveis' : 'Pendências'}</span></summary><p>${r.ok ? 'Todas as disciplinas necessárias estão compatíveis.' : esc(r.reasons.join('; '))}${r.limited ? ' (nem todos os horários puderam ser conferidos)' : ''}</p></details>`).join('')}</section>` : ''}</div>`;
+        const q=Core.quality(db,p),reports=Core.graduateReport(db,p),hard=Core.hardIssues(db,p.lessons),missing=Core.completeness(db,p);
+        const gaps=Core.cohortGaps(db,p);
+        const attended=reports.filter(g=>g.ok).length;
+        const demands=Core.graduateDemand(db,period);
+        const charts=demands.length ? chartType==='bar'
+          ? '<div class="demand-bars">'+demands.map(x=>'<div class="demand-row"><span>'+esc(x.name)+'</span><div class="demand-track"><span style="width:'+100*x.count/Math.max(1,demands[0].count)+'%"></span></div><b>'+x.count+'</b></div>').join('')+'</div>'
+          : '<div class="demand-pie-layout"><div class="demand-pie" style="background:conic-gradient('+demands.map((x,i)=>{const total=demands.reduce((n,v)=>n+v.count,0);const prev=demands.slice(0,i).reduce((n,v)=>n+v.count,0)/total*100;return ['#17694e','#b18b45','#5c89a7','#9571b2','#bc7483','#63a6a1'][i%6]+' '+prev+'% '+(prev+x.count/total*100)+'%'}).join(',')+')"></div><div class="demand-legend">'+demands.map((x,i)=>'<span><i style="background:'+['#17694e','#b18b45','#5c89a7','#9571b2','#bc7483','#63a6a1'][i%6]+'"></i>'+esc(x.name)+' · '+x.count+'</span>').join('')+'</div></div>'
+          : '<p class="muted">Nenhuma disciplina necessária cadastrada para formandos ativos neste período.</p>';
+        $('#report').innerHTML =
+          '<div class="panel no-print metrics-panel"><section class="metrics" aria-label="Indicadores do quadro de horários">'+
+          metricCard("weekly","weekly",p.lessons.reduce((n,l)=>n+l.length,0),"Aulas semanais")+
+          metricCard("fixed","lock",p.lessons.filter(l=>l.locked).length,"Blocos fixos")+
+          metricCard("gaps","gaps",gaps.length,"Janelas nas turmas")+'</section>'+
+          '<details id="gap-details" class="gap-details"><summary>Ver onde estão as '+gaps.length+' janela(s) nas turmas</summary>'+
+          '<p class="muted">Janelas são horários vagos entre duas aulas da mesma turma no mesmo dia. Não são conflitos.</p>'+
+          (gaps.length?'<div class="record-chips">'+gaps.map(x=>'<span class="record-chip">'+esc(db.cohorts.find(c=>c.id===x.cohort)?.name||'Turma')+' · '+esc(days[x.day])+' · '+esc(Core.times[x.slot])+'</span>').join('')+'</div>':'<p class="muted">Nenhuma janela nesta alternativa.</p>')+'</details></div>'+
+          (hard.length||missing.length?'<div class="panel no-print"><section class="diagnostics" role="status"><h3>⚠ Atenção à grade · '+(hard.length+missing.length)+' aviso(s)</h3>'+[...hard,...missing].map(s=>'<p>'+esc(s)+'</p>').join('')+'</section></div>':'')+
+          '<div class="panel no-print graduate-dashboard"><div class="graduate-dashboard-top"><div><h2>Formandos</h2><p class="muted">'+attended+' de '+reports.length+' atendidos · '+(reports.length?Math.round(attended*100/reports.length):0)+'% compatíveis</p></div><button id="toggle-graduate-dashboard" type="button" aria-expanded="'+graduateExpanded+'">'+(graduateExpanded?'Recolher':'Expandir')+'</button></div>'+
+          '<div id="graduate-dashboard-body" '+(graduateExpanded?'':'hidden')+'><div class="demand-header"><div><h3>Disciplinas mais requisitadas</h3><p class="muted">Número de formandos ativos que precisam de cada disciplina.</p></div><div class="chart-switch" role="group" aria-label="Tipo de gráfico"><button id="chart-bar" type="button" aria-pressed="'+(chartType==='bar')+'">Barras</button><button id="chart-pie" type="button" aria-pressed="'+(chartType==='pie')+'">Pizza</button></div></div>'+charts+
+          '<section class="graduate-list"><div class="section-heading"><h3>Formandos · '+attended+'/'+reports.length+' compatíveis</h3><button id="expand-graduates" type="button">Expandir todos</button></div>'+
+          reports.map(g=>'<details class="summary '+(g.ok?'ok':'warning')+'"><summary><span class="avatar" aria-hidden="true">'+esc(g.name.slice(0,1))+'</span><b>'+esc(g.name)+'</b><span>'+(g.ok?'Disciplinas compatíveis':'Pendências')+'</span></summary><p>'+(g.ok?'Todas as disciplinas necessárias estão compatíveis.':esc(g.reasons.join('; ')))+(g.limited?' (nem todos os horários puderam ser conferidos)':'')+'</p></details>').join('')+
+          '</section></div></div>';
+        $('#toggle-graduate-dashboard').onclick=()=>{graduateExpanded=!graduateExpanded;localStorage.setItem('celgrade-graduates-expanded',String(graduateExpanded));$('#graduate-dashboard-body').hidden=!graduateExpanded;$('#toggle-graduate-dashboard').textContent=graduateExpanded?'Recolher':'Expandir';$('#toggle-graduate-dashboard').setAttribute('aria-expanded',String(graduateExpanded))};
+        $('#chart-bar').onclick=()=>{chartType='bar';localStorage.setItem('celgrade-graduate-chart','bar');renderSchedule()};
+        $('#chart-pie').onclick=()=>{chartType='pie';localStorage.setItem('celgrade-graduate-chart','pie');renderSchedule()};
     }
-    const expand = document.querySelector<HTMLButtonElement>('#expand-graduates');
-    if (expand) expand.onclick = () => { const entries = $$('.graduate-list details') as HTMLDetailsElement[]; const open = entries.some(d => !d.open); entries.forEach(d => d.open = open); expand.textContent = open ? 'Recolher todos' : 'Expandir todos'; };
+    const expand=document.querySelector<HTMLButtonElement>('#expand-graduates');
+    if(expand)expand.onclick=()=>{const entries=$$('.graduate-list details') as HTMLDetailsElement[];const open=entries.some(d=>!d.open);entries.forEach(d=>d.open=open);expand.textContent=open?'Recolher todos':'Expandir todos'};
     renderTables();
 }
 // Documento independente da interface: grade limpa para PDF e impressão A4.
@@ -447,24 +472,46 @@ async function generate() {
 function renderList() {
     const key=page as 'rooms'|'teachers'|'subjects'|'cohorts'|'offers'|'graduates';
     const rows=db[key].filter(x=>!('period' in x)||x.period===period);
-    const graduate=key==='graduates';
-    const chips=(values:string[],tone='')=>'<div class="record-chips">'+values.map(v=>'<span class="record-chip '+tone+'">'+esc(v)+'</span>').join('')+'</div>';
-    const title=({rooms:'Sala',teachers:'Professor',subjects:'Disciplina',cohorts:'Turma',offers:'Disciplina',graduates:'Nome'} as Record<string,string>)[key];
-    const body=rows.map(x=>{
-        const label='name' in x?x.name:name('subjects',x.subject);
-        let details='',extra='';
-        if('available' in x){details=chips([x.available.filter(Boolean).length+' horários disponíveis']);if(key==='rooms')extra='<td>'+chips([(x as import('./core').Resource).module||'Sem módulo'])+'</td>';}
-        else if('stage' in x)details=chips([x.stage+'º semestre',x.room?name('rooms',x.room):'Sala automática']);
-        else if('load' in x)details=chips([name('teachers',x.teacher),name('cohorts',x.cohort),x.load+' aulas/semana']);
-        else if('subjects' in x){extra='<td>'+chips([x.active?'Ativo':'Inativo'],x.active?'chip-ok':'chip-muted')+'</td>';details=chips(x.subjects.map(id=>name('subjects',id)));}
-        return '<tr><td><span class="record-label">'+(navIcons[key]||'')+esc(label)+'</span></td>'+extra+
-        '<td>'+details+'</td><td class="record-actions"><button class="edit-action" data-edit="'+esc(x.id)+'">'+navIcons.edit+'Editar</button> <button class="delete-action" data-delete="'+esc(x.id)+'">'+navIcons.delete+'Excluir</button></td></tr>';
-    }).join('');
-    const extra=key==='rooms'?'<th>Módulo</th>':graduate?'<th>Situação</th>':'';
-    $('#content').innerHTML='<div class="panel records-panel"><div class="actions">'+button('add','+ Adicionar','primary')+
-    '<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><div class="record-table-scroll"><table><thead><tr><th>'+
-    title+'</th>'+extra+'<th>'+(graduate?'Disciplinas necessárias':'Detalhes')+'</th><th>Ações</th></tr></thead><tbody>'+body+
-    '</tbody></table></div>'+(rows.length?'':'<p class="muted">Nenhum cadastro ainda.</p>')+'</div>';
+    const chips=(values:string[])=>'<div class="record-chips">'+values.map(v=>'<span class="record-chip">'+esc(v)+'</span>').join('')+'</div>';
+    if(key==='graduates'||key==='offers'||key==='teachers'){
+        const cards=rows.map(x=>{
+            const id=x.id,title='name' in x?x.name:name('subjects',x.subject);
+            let body='',subtitle='',badge='';
+            if('subjects' in x){subtitle='Formando · '+period;badge='<span class="record-chip '+(x.active?'chip-ok':'chip-muted')+'">'+(x.active?'Ativo':'Inativo')+'</span>';
+                body='<div class="record-card-label">DISCIPLINAS NECESSÁRIAS</div>'+chips(x.subjects.map(s=>name('subjects',s)));}
+            else if('load' in x){subtitle='Oferta acadêmica · '+period;const cohort=db.cohorts.find(c=>c.id===x.cohort);
+                body='<div class="record-card-pair"><div><span>PROFESSOR</span><strong>'+esc(name('teachers',x.teacher))+'</strong></div><div><span>TURMA</span><strong>'+esc(name('cohorts',x.cohort))+'</strong></div></div>'+
+                chips([(cohort?cohort.stage+'º semestre':'Semestre não encontrado'),x.load+' aulas semanais']);}
+            else if('available' in x){subtitle='Professor · '+period;badge='<span class="record-chip chip-ok">'+x.available.filter(Boolean).length+' horários</span>';
+                const subjects=[...new Set(db.offers.filter(o=>o.teacher===x.id&&o.period===period).map(o=>name('subjects',o.subject)))];
+                body='<div class="record-card-label">DISCIPLINAS MINISTRADAS</div>'+(subjects.length?chips(subjects):'<p class="muted">Sem ofertas neste período.</p>')+
+                '<div class="record-card-label">DISPONIBILIDADE SEMANAL</div><div class="availability-mini">'+days.map((day,i)=>{
+                    const count=x.available.slice(i*6,(i+1)*6).filter(Boolean).length;
+                    return '<div><span>'+esc(day.slice(0,3))+'</span><strong>'+count+'/6</strong></div>';
+                }).join('')+'</div>';}
+            return '<article class="record-card"><div class="record-card-head"><span class="record-card-icon">'+(navIcons[key]||'')+'</span><div class="record-card-title"><h3>'+esc(title)+'</h3><small>'+esc(subtitle)+'</small></div>'+badge+'</div>'+
+            '<div class="record-card-body">'+body+'</div><div class="record-card-actions"><button type="button" class="edit-action" data-edit="'+esc(id)+'">'+navIcons.edit+'Editar</button><button type="button" class="delete-action" data-delete="'+esc(id)+'">'+navIcons.delete+'Excluir</button></div></article>';
+        }).join('');
+        $('#content').innerHTML='<div class="panel records-panel record-card-panel"><div class="actions">'+button('add','+ Adicionar','primary')+
+          '<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div>'+
+          '<div class="record-search-bar"><input id="record-search" type="search" placeholder="Buscar '+(key==='graduates'?'formando':key==='teachers'?'professor':'disciplina, professor ou turma')+'" aria-label="Buscar cadastros"><span id="record-count">'+rows.length+' registro(s)</span></div>'+
+          '<div class="record-card-grid">'+cards+'</div>'+(rows.length?'':'<p class="muted">Nenhum cadastro ainda.</p>')+'</div>';
+        const search=$<HTMLInputElement>('#record-search');
+        search.oninput=()=>{const term=search.value.toLocaleLowerCase('pt-BR');let visible=0;$$('.record-card').forEach(el=>{const show=(el.textContent||'').toLocaleLowerCase('pt-BR').includes(term);el.hidden=!show;if(show)visible++});$('#record-count').textContent=visible+' registro(s)'};
+    }else{
+        const title=({rooms:'Sala',subjects:'Disciplina',cohorts:'Turma'} as Record<string,string>)[key];
+        const body=rows.map(x=>{
+            const label='name' in x?x.name:'';
+            let details='',extra='';
+            if('available' in x){details=chips([x.available.filter(Boolean).length+' horários disponíveis']);if(key==='rooms')extra='<td>'+chips([(x as import('./core').Resource).module||'Sem módulo'])+'</td>';}
+            else if('stage' in x)details=chips([x.stage+'º semestre',x.room?name('rooms',x.room):'Sala automática']);
+            return '<tr><td><span class="record-label">'+(navIcons[key]||'')+esc(label)+'</span></td>'+extra+'<td>'+details+'</td>'+
+            '<td class="record-actions"><button class="edit-action" data-edit="'+esc(x.id)+'">'+navIcons.edit+'Editar</button> <button class="delete-action" data-delete="'+esc(x.id)+'">'+navIcons.delete+'Excluir</button></td></tr>';
+        }).join('');
+        $('#content').innerHTML='<div class="panel records-panel"><div class="actions">'+button('add','+ Adicionar','primary')+
+        '<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><div class="record-table-scroll"><table><thead><tr><th>'+title+'</th>'+(key==='rooms'?'<th>Módulo</th>':'')+
+        '<th>Detalhes</th><th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div>'+(rows.length?'':'<p class="muted">Nenhum cadastro ainda.</p>')+'</div>';
+    }
     $('#add').onclick=()=>edit(null);
     $$('[data-edit]').forEach(b=>b.onclick=()=>edit(b.dataset.edit!));
     $$('[data-delete]').forEach(b=>b.onclick=()=>remove(b.dataset.delete!));
