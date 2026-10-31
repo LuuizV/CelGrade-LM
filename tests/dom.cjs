@@ -25,3 +25,20 @@ test('indicadores da grade e ícones de navegação permanecem acessíveis',asyn
   assert($('#pdf').querySelector('svg'));
  }finally{await a.close();}
 });
+
+test('0.8.3: SVG dos cadeados, informação de erro e tooltip junto ao mouse',async()=>{
+ const a=await app();try{
+  const {w,$}=a;
+  const lock=$('[data-lock]');
+  assert(lock.querySelector('.lock-shackle'));
+  lock.click();await tick();
+  assert($('[data-lock]').querySelector('.lock-shackle'));
+  $('.lesson[data-lesson="c"]').click();
+  const cell=$('td[data-cohort="c2"][data-day="0"][data-slot="0"]');
+  cell.dispatchEvent(new w.MouseEvent('mousemove',{clientX:110,clientY:90,bubbles:true}));
+  assert.equal($('#tip').hidden,false);
+  assert($('#tip').style.left.endsWith('px'));
+  assert($('#tip').style.top.endsWith('px'));
+  assert($('#tip').textContent.includes('Segunda'));
+ }finally{await a.close();}
+});

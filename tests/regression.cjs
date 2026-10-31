@@ -14,3 +14,10 @@ test('worker selects best observed candidate and preserves prior schedules',()=>
 
 
 test('room change validates whole block, rejects locked/missing rooms and never mutates original',()=>{const C=require('../dist/core');const d=C.demo(),p={id:'p',name:'test',period:'2027.1',created:'',lessons:[{id:'a',offer:'o1',day:0,slot:0,length:2,room:'r1',locked:false}]};const before=structuredClone(p);assert.equal(C.changeRoom(d,p,'a','r2').red.length,0);assert.deepEqual(p,before);assert(C.changeRoom(d,p,'a','missing').red.length);p.lessons[0].locked=true;assert(C.changeRoom(d,p,'a','r2').red.length);p.lessons[0].locked=false;d.rooms.find(r=>r.id==='r2').available[1]=0;assert(C.changeRoom(d,p,'a','r2').red.length)});
+
+test('0.8.3: movimentos bloqueados identificam local e causa',()=>{
+ const d=fixture(),p=d.plans[0],lesson=p.lessons[0];
+ lesson.locked=true;
+ const r=C.move(d,p,lesson.id,0,0,lesson.room);
+ assert(r.red.some(s=>s.toLowerCase().includes('destrave')));
+});

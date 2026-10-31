@@ -1,5 +1,20 @@
 [
   {
+    "version": "0.8.3",
+    "date": "2026-10-30",
+    "title": "Ícones, avisos de erro e interação na grade",
+    "changes": {
+      "Melhorias": [
+        "Cadeados SVG de cor uniforme com animação discreta, sem depender de emojis do sistema.",
+        "Dicas sobre movimentação novamente próximas ao ponteiro, ajustadas às bordas da janela.",
+        "Mensagens de erro com contexto, motivo e orientação de correção."
+      ],
+      "Correções": [
+        "Estados do menu lateral não perdem a cor selecionada quando o mouse passa sobre os ícones."
+      ]
+    }
+  },
+  {
     "version": "0.8.2",
     "date": "2026-10-30",
     "title": "Iconografia refinada e indicadores do quadro",
