@@ -70,26 +70,13 @@ function metricCard(kind: string, icon: string, value: number | string, label: s
 }
 const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 function notice(s: string, bad = false) { $('#notice').textContent = s; $('#notice').className = 'visible' + (bad ? ' bad' : ''); }
-function explainError(error: unknown, location: string): string {
+function explainError(error: unknown, _location: string): string {
     const raw = error instanceof Error ? error.message : String(error);
-    const detail = raw.replace(/^Error:\s*/, '').trim();
-    const hints: [RegExp,string][] = [
-        [/Oferta inválida/i, 'Revise a disciplina, o professor, a turma, o período e a carga semanal dessa oferta.'],
-        [/Formando inválido/i, 'Confira o período e as disciplinas selecionadas para o formando.'],
-        [/Etapa ou sala da turma inválida/i, 'Informe um semestre válido e escolha uma sala cadastrada ou a opção automática.'],
-        [/Períodos devem ter formato/i, 'Utilize o formato AAAA.1 ou AAAA.2, sem repetir períodos já cadastrados.'],
-        [/ID inválido|Coleção inválida|Aula inválida|Grade inválida|Banco inválido/i, 'Os dados possuem uma referência inconsistente. Confira os cadastros relacionados ou restaure um backup válido.'],
-        [/Limite de busca atingido/i, 'A busca terminou sem comprovar que não existe solução. Tente novamente ou libere restrições.'],
-        [/Não existe grade viável/i, 'Confira a disponibilidade de salas e professores, as aulas fixas e a carga das ofertas.'],
-        [/fetch|network|ECONN|ENOTFOUND/i, 'Verifique a conexão de rede e tente novamente.'],
-    ];
-    if (/^Local: .+\nCampo: /s.test(detail)) return detail;
-    const hint = hints.find(([pattern]) => pattern.test(detail))?.[1];
-    return 'Local: ' + location + '\nProblema: ' + detail + (hint ? '\nComo resolver: ' + hint : '\nComo resolver: revise os dados desta operação e tente novamente. Se persistir, consulte o backup ou registre os detalhes do erro.');
+    return raw.replace(/^Error:\s*/, '').replace(/^Local: [^\n]*\nCampo: [^\n]*\nProblema: /, '')
+        .replace(/\nComo resolver: [\s\S]*$/, '');
 }
-function describeMovement(issues: string[], location: string) {
-    return issues.length ? 'Local: ' + location + '\nMotivo: ' + issues.join('; ') +
-        '\nComo resolver: escolha um horário permitido ou ajuste as disponibilidades, conflitos e aulas fixas indicados.' : 'Movimento permitido.';
+function describeMovement(issues: string[], _location: string) {
+    return issues.length ? issues.join('\n') : 'Movimento permitido';
 }
 function plan() { return db.plans.find(p => p.id === planId && p.period === period); }
 function name(kind: 'rooms' | 'teachers' | 'subjects' | 'cohorts', id: string) { return db[kind].find(x => x.id === id)?.name || 'Não encontrado'; }
@@ -158,7 +145,7 @@ function renderSchedule() {
             return; const n = Core.demo(); n.revision = db.revision; await save(n); period = db.periods[0]; render(); };
     if (p) {
         const q = Core.quality(db, p), reports = Core.graduateReport(db, p), hard = Core.hardIssues(db, p.lessons), missing = Core.completeness(db, p);
-        $('#report').innerHTML = `<div class="panel no-print"><section class="metrics" aria-label="Indicadores do quadro de horários">${metricCard("weekly", "weekly", p.lessons.reduce((n, l) => n + l.length, 0), "Aulas semanais")}${metricCard("graduates", "attended", reports.filter(r => r.ok).length + "/" + reports.length, "Formandos atendidos")}${metricCard("fixed", "lock", p.lessons.filter(l => l.locked).length, "Blocos fixos")}${metricCard("gaps", "gaps", q.gaps, "Janelas nas turmas")}</section>${hard.length || missing.length ? `<section class="diagnostics" role="status"><h3>⚠ Atenção à grade · ${hard.length + missing.length} aviso(s)</h3>${[...hard, ...missing].map(s => `<p>${esc(s)}</p>`).join('')}</section>` : ''}${reports.length ? `<section class="graduate-list"><div class="section-heading"><h3>Formandos · ${reports.filter(r => r.ok).length}/${reports.length} compatíveis</h3><button id="expand-graduates" type="button">Expandir todos</button></div>${reports.map(r => `<details class="summary ${r.ok ? 'ok' : 'warning'}"><summary><span class="avatar" aria-hidden="true">${esc(r.name.slice(0,1))}</span><b>${esc(r.name)}</b><span>${r.ok ? 'Disciplinas compatíveis' : 'Pendências'}</span></summary><p>${r.ok ? 'Todas as disciplinas necessárias estão compatíveis.' : esc(r.reasons.join('; '))}${r.limited ? ' (busca de combinações limitada)' : ''}</p></details>`).join('')}</section>` : ''}</div>`;
+        $('#report').innerHTML = `<div class="panel no-print"><section class="metrics" aria-label="Indicadores do quadro de horários">${metricCard("weekly", "weekly", p.lessons.reduce((n, l) => n + l.length, 0), "Aulas semanais")}${metricCard("graduates", "attended", reports.filter(r => r.ok).length + "/" + reports.length, "Formandos atendidos")}${metricCard("fixed", "lock", p.lessons.filter(l => l.locked).length, "Blocos fixos")}${metricCard("gaps", "gaps", q.gaps, "Janelas nas turmas")}</section>${hard.length || missing.length ? `<section class="diagnostics" role="status"><h3>⚠ Atenção à grade · ${hard.length + missing.length} aviso(s)</h3>${[...hard, ...missing].map(s => `<p>${esc(s)}</p>`).join('')}</section>` : ''}${reports.length ? `<section class="graduate-list"><div class="section-heading"><h3>Formandos · ${reports.filter(r => r.ok).length}/${reports.length} compatíveis</h3><button id="expand-graduates" type="button">Expandir todos</button></div>${reports.map(r => `<details class="summary ${r.ok ? 'ok' : 'warning'}"><summary><span class="avatar" aria-hidden="true">${esc(r.name.slice(0,1))}</span><b>${esc(r.name)}</b><span>${r.ok ? 'Disciplinas compatíveis' : 'Pendências'}</span></summary><p>${r.ok ? 'Todas as disciplinas necessárias estão compatíveis.' : esc(r.reasons.join('; '))}${r.limited ? ' (nem todos os horários puderam ser conferidos)' : ''}</p></details>`).join('')}</section>` : ''}</div>`;
     }
     const expand = document.querySelector<HTMLButtonElement>('#expand-graduates');
     if (expand) expand.onclick = () => { const entries = $$('.graduate-list details') as HTMLDetailsElement[]; const open = entries.some(d => !d.open); entries.forEach(d => d.open = open); expand.textContent = open ? 'Recolher todos' : 'Expandir todos'; };
@@ -228,7 +215,7 @@ function renderTables() {
     });
 }
 function subjectTone(id: string) { let hash = 0; for (const c of id) hash = (hash * 31 + c.charCodeAt(0)) >>> 0; return hash % 6; }
-function graduateNote(id: string, p: Plan) { const r = Core.graduateReport(db, p).find(r => r.id === id)!; return `<p class="${r.ok ? 'ok' : 'warning'}">${r.ok ? 'Todas as disciplinas necessárias estão compatíveis.' : esc(r.reasons.join('; '))}${r.limited ? ' Verificação limitada; não é prova de impossibilidade.' : ''}</p>`; }
+function graduateNote(id: string, p: Plan) { const r = Core.graduateReport(db, p).find(r => r.id === id)!; return `<p class="${r.ok ? 'ok' : 'warning'}">${r.ok ? 'Todas as disciplinas necessárias estão compatíveis.' : esc(r.reasons.join('; '))}${r.limited ? ' Nem todos os horários puderam ser conferidos.' : ''}</p>`; }
 function dropText(r: ReturnType<typeof Core.move>) { return r.red.length ? describeMovement(r.red, 'Quadro de horários') : r.yellow.length ? 'Movimento exige confirmação:\n' + r.yellow.join('\n') : 'Movimento permitido'; }
 function checkDrop(cell: HTMLElement) { const cached = dropCache.get(cell); if (cached)
     return cached; const p = plan()!, l = p.lessons.find(x => x.id === dragId); if (!l)
@@ -372,7 +359,7 @@ async function remove(id: string) { if (!confirm('Excluir este registro? Registr
     if (typeof ReleaseHistory !== 'undefined') void initReleaseHistory();
 }
 catch (e) {
-    notice(explainError(e, labels[page] + ' — exclusão') + '\nAntes de excluir, verifique se o registro está ligado a alguma oferta ou grade.', true);
+    notice(explainError(e, labels[page] + ' — exclusão'), true);
 } }
 $('#form').onsubmit = async (e) => { e.preventDefault(); if (renamingPlan) {
     const n = structuredClone(db);
