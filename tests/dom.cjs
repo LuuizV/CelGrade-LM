@@ -13,12 +13,11 @@ test('visual refresh preserves controls and expandable graduate details',async()
 test('indicadores da grade e ícones de navegação permanecem acessíveis',async()=>{
  const a=await app();try{
   const {w,$}=a;
-  const cards=[...w.document.querySelectorAll('.metrics .metric-card')];
-  assert.equal(cards.length,3);
-  assert.deepEqual(cards.map(c=>c.querySelector('.metric-label')?.textContent),[
-   'Aulas semanais','Blocos fixos','Janelas nas turmas'
-  ]);
-  assert(cards.every(c=>c.querySelector('.metric-icon svg[aria-hidden="true"]')));
+  const status=$('#schedule-status');
+  assert.equal(status.querySelectorAll('.status-pill').length,3);
+  assert.equal(w.document.querySelectorAll('.metrics .metric-card').length,0);
+  assert($('#gap-details'));
+  assert($('#schedule-diagnostics'));
   assert.equal(w.document.querySelectorAll('nav button[data-page] .ui-icon').length,10);
   assert($('#generate').querySelector('svg'));
   assert($('[data-undo-cohort]').querySelector('svg'));
@@ -247,5 +246,20 @@ test('0.9.6: marca não repete o nome e possui wordmark lateral',async()=>{
  assert.equal(w.document.querySelector('.window-title strong'),null);
  assert($('.window-motto').textContent.includes('Menos conflitos'));
  assert.equal($('.brand-lockup').getAttribute('src'),'brand-lockup.svg');
+ }finally{await a.close();}
+});
+
+test('0.9.7: indicadores compactos, avisos próximos à geração e aulas travadas',async()=>{
+ const a=await app();try{const {w,$}=a;
+  assert($('#schedule-status').closest('.schedule-tools'));
+  assert($('#schedule-diagnostics').closest('.schedule-tools'));
+  assert.equal(w.document.querySelectorAll('.metrics-panel').length,0);
+  const lesson=$('.lesson[data-lesson="a"]');
+  assert(!lesson.classList.contains('locked'));
+  $('[data-lock="a"]').click();await tick();
+  const locked=$('.lesson[data-lesson="a"]');
+  assert(locked.classList.contains('locked'));
+  assert(locked.querySelector('.lesson-lock-badge').textContent.includes('Travada'));
+  assert($('#schedule-status').textContent.includes('1'));
  }finally{await a.close();}
 });
