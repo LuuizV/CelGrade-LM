@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.9.4",
+    "date": "2026-10-31",
+    "title": "Painel dos formandos e cartões responsivos",
+    "changes": {
+      "Quadro de horários": [
+        "Indicadores gerais separados do painel dos formandos, que pode ser recolhido.",
+        "Gráficos de barras e pizza com demanda real por disciplina entre os formandos ativos.",
+        "Janelas nas turmas com explicação breve e detalhes por dia, horário e turma.",
+        "Seletor de alternativas refinado para preservar a bolinha de status."
+      ],
+      "Cadastros": [
+        "Cartões acadêmicos compactos para formandos, ofertas de disciplinas e professores.",
+        "Busca nas listas em cartões e disponibilidade semanal dos professores."
+      ],
+      "Interface": [
+        "Melhor aproveitamento de tela maximizada e centralização da página Sobre.",
+        "Layout adaptado a monitores grandes e janelas menores, respeitando a acessibilidade."
+      ]
+    }
+  },
+  {
     "version": "0.9.3",
     "date": "2026-10-31",
     "title": "Melhorias de usabilidade e organização",
