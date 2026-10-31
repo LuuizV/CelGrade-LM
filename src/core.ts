@@ -113,7 +113,7 @@ export function validate(d: DB) {
                 validationError(local, 'Disponibilidade semanal', 'Valor inválido em ' + lessonWhen(Math.floor(invalid / 6), invalid % 6) + '.', 'Marque ou desmarque o horário correspondente.');
         }
     }
-    for (const [key,label] of collections.filter(x => x.key !== 'offers') as {key:'rooms'|'teachers'|'subjects'|'cohorts'|'graduates'|'plans';label:string}[]) {
+    for (const {key,label} of collections.filter(x => x.key !== 'offers') as {key:'rooms'|'teachers'|'subjects'|'cohorts'|'graduates'|'plans';label:string}[]) {
         for (const r of d[key] as {id:string;name:string}[]) {
             if (typeof r.name !== 'string' || !r.name.trim() || r.name.length > 200)
                 validationError(label + ' — ' + (r.name || 'registro sem nome') + ' (ID ' + r.id + ')', 'Nome', 'Nome obrigatório, até 200 caracteres.', 'Preencha um nome válido, sem deixá-lo em branco.');
