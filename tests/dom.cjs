@@ -245,7 +245,7 @@ test('0.9.6: marca não repete o nome e possui wordmark lateral',async()=>{
  const a=await app();try{const {$,w}=a;
  assert.equal(w.document.querySelector('.window-title strong'),null);
  assert($('.window-motto').textContent.includes('Menos conflitos'));
- assert.equal($('.brand-lockup').getAttribute('src'),'brand-lockup.svg');
+ assert.equal($('.brand-lockup').getAttribute('src'),'brand-original.png');
  }finally{await a.close();}
 });
 
