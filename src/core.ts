@@ -495,8 +495,10 @@ export function generate(d: DB, period: string, base: Plan | undefined, seed: nu
             used[best] = false;
             return false;
         }
-        if (search(tasks.length))
-            const created = new Date(); return { id: uid(), name: 'Alternativa ' + period + ' - ' + created.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }), period, lessons, created: created.toISOString() };
+        if (search(tasks.length)) {
+            const created = new Date();
+            return { id: uid(), name: 'Alternativa ' + period + ' - ' + created.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }), period, lessons, created: created.toISOString() };
+        }
         anyTimeout ||= expired;
     }
     throw Error(anyTimeout ? 'Limite de busca atingido; isso não prova que não existe solução.' : 'Não existe grade viável com estas disponibilidades e aulas fixas.');
