@@ -232,3 +232,28 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
   .print-draft{font-size:10px!important;color:#984b39!important}
   .print-group-alert{font-size:10px!important;color:#985b2e!important}
 }
+
+/* v0.9.2: controles compactos, confirmações internas e painel de atualização. */
+.delete-pair{display:inline-flex;gap:0;align-items:stretch}
+.delete-pair button{border-radius:0;min-height:34px;padding:6px 9px;font-size:11px;white-space:nowrap}
+.delete-pair button:first-child{border-radius:7px 0 0 7px}
+.delete-pair button:last-child{border-radius:0 7px 7px 0;border-left:0}
+.cel-confirm{width:min(510px,calc(100vw - 35px));max-height:85vh;padding:23px 25px;border:1px solid #d5e2d7;border-radius:14px;box-shadow:0 25px 75px #0c322c44;color:#24483b}
+.cel-confirm::backdrop{background:#112a2559}
+.cel-confirm-head{display:flex;align-items:center;gap:13px}
+.cel-confirm-head h2{font-size:19px;margin:0;color:#184e39}
+.cel-confirm-icon{display:inline-grid;place-items:center;flex:none;width:38px;height:38px;border-radius:12px;background:#fbf2dd;color:#956d24;font-weight:800;font-size:20px}
+.cel-confirm-message{white-space:pre-line;line-height:1.65;background:#f6f9f6;border:1px solid #e2ebe3;border-radius:8px;padding:13px 15px;margin:18px 0;color:#415d4d}
+.cel-confirm-actions{display:flex;justify-content:flex-end;gap:9px}
+.cel-confirm-actions button{min-width:110px}
+.confirm-danger{background:#a63d36;color:white;border:1px solid #a63d36}
+.confirm-danger:hover{background:#8e302b;color:white}
+.update-card{padding:19px;border:1px solid #d4e5d9;border-radius:13px;background:linear-gradient(135deg,#fbfdfb,#eef6ef);margin:15px 0 22px}
+.update-card-top{display:flex;gap:14px;align-items:center}
+.update-card-icon{display:inline-grid;place-items:center;width:42px;height:42px;flex:none;border-radius:11px;background:#d8ebdf;color:#14694b;font-size:25px;font-weight:650}
+.update-card-copy{flex:1;min-width:0}.update-card-copy strong{font-size:14px;color:#184b38}.update-card-copy p{font-size:12px;margin:5px 0;color:#5b7565;line-height:1.5}
+.update-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:15px 0 0 56px}
+.update-actions button[hidden]{display:none!important}
+.update-progress-bar{height:10px;background:#dce8df;border-radius:10px;overflow:hidden;margin:16px 0 8px}
+.update-progress-bar>span{display:block;background:#17694e;height:100%;width:0;transition:width .2s ease}
+#update-progress-detail{text-align:right;color:#5b7767;font-size:11px}
