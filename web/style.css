@@ -476,3 +476,46 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
 @keyframes page-enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @media screen and (max-width:850px){.period-cards{grid-template-columns:1fr}.period-card{padding:16px}}
 @media(prefers-reduced-motion:reduce){.page-enter,.about>*{animation:none!important}}
+
+/* 0.9.7 — horário mais compacto, leitura clara e identidade Jasmim fiel. */
+@media screen{
+ .window-title .jasmine-mark{width:28px;height:28px;max-width:28px;border-radius:0;object-fit:contain}
+ .window-title{gap:11px}
+ .brand .brand-lockup{max-width:218px;width:100%;height:auto}
+ .schedule-tools{padding:18px 20px;margin-bottom:14px}
+ #schedule-status{margin-bottom:16px}
+ .schedule-status-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:1px solid #e6ece7;padding-bottom:13px}
+ .schedule-status-heading{font-size:9px;font-weight:750;letter-spacing:1.1px;color:#60756b}
+ .schedule-status-values{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+ .status-pill{display:inline-flex;align-items:center;gap:6px;background:#f3f6f4;color:#3b5d4f;border:1px solid #e3ebe5;border-radius:7px;padding:7px 10px;font-size:11px;white-space:nowrap;line-height:1.2}
+ .status-pill strong{font-size:12px;color:#145c46;font-weight:750}
+ .status-pill .ui-icon{width:15px;height:15px;color:#327b5b}
+ .status-gaps{position:relative}
+ .status-gaps summary{list-style:none;cursor:pointer;user-select:none}
+ .status-gaps summary::-webkit-details-marker{display:none}
+ .status-gaps summary:hover,.status-gaps[open] summary{background:#e6f1e9;border-color:#bdd9c8}
+ .status-gaps-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:30;width:min(460px,calc(100vw - 285px));padding:13px 15px;background:#fff;border:1px solid #dbe7df;border-radius:10px;box-shadow:0 10px 28px #1b45301c}
+ .status-gaps-menu .muted{margin:0 0 8px}
+ .status-gaps-menu .record-chips{max-height:210px;overflow:auto}
+ #report>.graduate-dashboard{margin-top:14px}
+ #schedule-diagnostics:empty{display:none}
+ #schedule-diagnostics .diagnostics{margin:14px 0 0}
+ .lesson.locked{position:relative;box-shadow:inset 0 0 0 2px #a77f36,0 1px 5px #99772b25;border-left-width:6px;filter:saturate(1.08)}
+ .lesson.locked button[data-lock]{background:#145c46;color:#fff;min-height:26px;min-width:26px;border-radius:7px;display:grid;place-items:center}
+ .lesson.locked button[data-lock] .ui-icon{height:17px;width:17px}
+ .lesson-lock-badge{display:inline-block;margin-top:8px;padding:3px 7px;border:1px solid #ddc486;border-radius:5px;background:#fff5db;color:#74561e;font-size:10px;font-weight:700;letter-spacing:.15px}
+ .lesson.locked:hover{box-shadow:inset 0 0 0 2px #9a752e,0 3px 8px #91732f33}
+}
+@media screen and (max-width:950px){.schedule-status-bar{align-items:flex-start}.schedule-status-values{width:100%}.status-gaps-menu{left:0;right:auto;width:min(380px,calc(100vw - 230px))}}
+@media print{#schedule-status,#schedule-diagnostics{display:none!important}}
+
+/* 0.9.7 — arte Jasmim original, aprovada, sem redesenho da marca. */
+@media screen{
+ .brand .brand-lockup{display:block;object-fit:contain;width:100%;max-width:218px;height:auto}
+ .window-title .jasmine-top-mark{
+   display:inline-block;flex:none;width:28px;height:28px;border:0;border-radius:0;
+   background-image:url('brand-original.png');background-size:auto 28px;
+   background-repeat:no-repeat;background-position:left center;
+   filter:drop-shadow(0 1px 1px #0002);
+ }
+}

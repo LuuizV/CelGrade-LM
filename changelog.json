@@ -1,5 +1,22 @@
 [
   {
+    "version": "0.9.7",
+    "date": "2026-10-31",
+    "title": "Identidade visual fiel e quadro mais compacto",
+    "changes": {
+      "Identidade": [
+        "Logotipo lateral corrigido para reproduzir a arte do jasmim aprovada.",
+        "Ícones padronizados com transparência limpa e melhor definição no Windows.",
+        "Jasmim maior na barra superior, alinhado ao lema."
+      ],
+      "Quadro de horários": [
+        "Indicadores compactos no topo dos controles de geração, com detalhes expansíveis das janelas.",
+        "Avisos e pendências da grade movidos para imediatamente abaixo dos controles.",
+        "Aulas travadas com borda reforçada, cadeado maior e selo Travada, sem alterar as cores das disciplinas."
+      ]
+    }
+  },
+  {
     "version": "0.9.6",
     "date": "2026-10-31",
     "title": "Jasmim integrado e navegação mais fluida",
