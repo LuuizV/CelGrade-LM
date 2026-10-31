@@ -13,7 +13,7 @@ test('0.8.4: erros de oferta identificam campo e disciplina',()=>{
 });
 test('0.8.4: cargas de turma listam disciplinas e excesso',()=>{
  const d=C.demo();d.offers[0].load=30;
- assert.throws(()=>C.validate(d),e=>/Computação A/.test(e.message)&&/Cálculo I/.test(e.message)&&/34 aulas/.test(e.message));
+ assert.throws(()=>C.validate(d),e=>/Computação A/.test(e.message)&&/34 aulas/.test(e.message)&&/limite é 30/.test(e.message));
 });
 test('0.8.4: disponibilidade identifica dia e intervalo',()=>{
  const d=C.demo();d.rooms[0].available[8]=3;
