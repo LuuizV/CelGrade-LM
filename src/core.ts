@@ -351,6 +351,25 @@ export function graduateChanges(d: DB, before: Plan, after: Plan): string[] {
     });
 }
 
+/** Horários livres estritamente entre aulas da mesma turma em um mesmo dia. */
+export function cohortGaps(d: DB, p: Plan): {cohort:string; day:number; slot:number}[] {
+    const gaps: {cohort:string;day:number;slot:number}[]=[];
+    for (const cohort of d.cohorts) for(let day=0;day<5;day++) {
+        const slots=new Set(p.lessons.filter(l=>l.day===day&&d.offers.find(o=>o.id===l.offer)?.cohort===cohort.id)
+            .flatMap(l=>Array.from({length:l.length},(_,i)=>l.slot+i)));
+        if(!slots.size)continue;
+        const min=Math.min(...slots),max=Math.max(...slots);
+        for(let slot=min+1;slot<max;slot++) if(!slots.has(slot))gaps.push({cohort:cohort.id,day,slot});
+    }
+    return gaps;
+}
+export function graduateDemand(d: DB, period:string): {subject:string;name:string;count:number}[] {
+    const counts=new Map<string,number>();
+    for(const g of d.graduates.filter(x=>x.active&&x.period===period))
+        for(const subject of new Set(g.subjects)) counts.set(subject,(counts.get(subject)||0)+1);
+    return [...counts].map(([subject,count])=>({subject,name:d.subjects.find(s=>s.id===subject)?.name||subject,count}))
+        .sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'pt-BR'));
+}
 export function quality(d: DB, p: Plan) {
     const reports = graduateReport(d, p);
     let roomChanges = 0, gaps = 0;
