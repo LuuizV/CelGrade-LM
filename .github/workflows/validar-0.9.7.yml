@@ -1,0 +1,17 @@
+name: Validar CelGrade LM 0.9.7
+on:
+  push:
+    branches: [fix/celgrade-0.9.7-arte-original]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
