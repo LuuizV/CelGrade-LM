@@ -354,7 +354,7 @@ async function undoMove(cohort: string) {
     if(Core.hardIssues(n,current.lessons).length>Core.hardIssues(db,plan()!.lessons).length){
        notice('Desfazer criaria novos conflitos na grade.',true);return;
     }
-    try{await save(n,'Antes de desfazer movimento da turma');undo.splice(index);render();notice('Movimento desfeito.');}
+    try{await save(n,'Antes de desfazer movimento da turma');undo.splice(index,1);render();notice('Movimento desfeito.');}
     catch(e){notice(explainError(e,'Desfazer movimento'),true);}
 }
 async function pdf() { if (!plan()) {
