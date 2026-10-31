@@ -75,3 +75,14 @@ test('0.9.2: nomes antigos de salas podem ser separados sem perder IDs',()=>{
  assert.equal(C.roomLabel(d.rooms[0]),'Sala 06 - Módulo I');
  C.validate(d);
 });
+
+test('0.9.4: janelas calculadas por turma e demanda dos formandos',()=>{
+ const d=C.demo();d.offers.forEach(o=>o.load=2);
+ const p={id:'p',period:'2027.1',created:'',name:'Teste',lessons:[
+  {id:'a',offer:'o1',day:0,slot:0,length:2,room:'r1',locked:false},
+  {id:'b',offer:'o2',day:0,slot:3,length:2,room:'r1',locked:false}
+ ]};
+ assert.deepEqual(C.cohortGaps(d,p).map(x=>x.slot),[2]);
+ const count=C.graduateDemand(d,'2027.1');assert(Array.isArray(count));
+ assert(count.every(x=>x.count>=1));
+});
