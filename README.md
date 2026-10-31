@@ -1,7 +1,7 @@
 # CelGrade LM
 
 <p align="center">
-  <img src="web/brand-lockup.svg" alt="Identidade visual do CelGrade LM, com jasmim" width="390">
+  <img src="web/brand-original.png" alt="Identidade visual do CelGrade LM, com jasmim" width="390">
 </p>
 
 <p align="center"><strong>Menos conflitos. Mais possibilidades.</strong></p>
