@@ -617,7 +617,7 @@ function renderPeriods() {
     });
     $('#add-period').onclick=async()=>{
         const value=$<HTMLInputElement>('#new-period').value.trim();
-        if(!/^\\d{4}\\.[12]$/.test(value)){notice('Informe um período válido no formato AAAA.1 ou AAAA.2.',true);return;}
+        if(!/^\d{4}\.[12]$/.test(value)){notice('Informe um período válido no formato AAAA.1 ou AAAA.2.',true);return;}
         if(db.periods.includes(value)){notice('Esse período já está cadastrado.',true);return;}
         const n=structuredClone(db);n.periods.push(value);n.periods.sort();
         try{await save(n);period=value;localStorage.setItem('celgrade-active-period',period);planId='';undo=[];render();notice('Período '+value+' cadastrado e selecionado.');}
