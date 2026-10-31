@@ -243,7 +243,7 @@ async function applyDrop(cell: HTMLElement) {
     const r = checkDrop(cell);
     clearDrag();
     if (r.red.length) {
-        notice(describeMovement(r.red, 'Quadro de horários — movimentação de aula'), true);
+        notice('Movimento bloqueado.\n' + describeMovement(r.red, 'Quadro de horários — movimentação de aula'), true);
         return;
     }
     if (r.yellow.length && !confirm('Atenção: este movimento altera o atendimento dos formandos.\n\n' + r.yellow.join('\n') + '\n\nPermitir esta exceção?'))
