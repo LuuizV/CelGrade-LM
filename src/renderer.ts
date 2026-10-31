@@ -70,11 +70,11 @@ function metricCard(kind: string, icon: string, value: number | string, label: s
         '</strong><span class="metric-label">' + esc(label) + '</span></div></div>';
 }
 const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
-function notice(s: string, bad = false) {
+function notice(s: string, bad = false, persistent = false) {
     if (noticeTimer) clearTimeout(noticeTimer);
     const el = $('#notice');
     el.textContent = s; el.className = 'visible' + (bad ? ' bad' : '');
-    noticeTimer = setTimeout(() => { el.classList.remove('visible'); noticeTimer = null; }, bad ? 10000 : 4000);
+    if (!persistent) noticeTimer = setTimeout(() => { el.classList.remove('visible'); noticeTimer = null; }, bad ? 10000 : 4000);
 }
 function explainError(error: unknown, _location: string): string {
     const raw = error instanceof Error ? error.message : String(error);
@@ -377,19 +377,20 @@ async function generate() {
         return;
     busy = true;
     clearDrag();
-    $$('button,select').forEach(el => el.setAttribute('disabled', 'true'));
-    notice('Comparando alternativas e atendimento dos formandos…');
+    const controls = $('button,select').map(el => ({el, disabled: el.hasAttribute('disabled')}));
+    controls.forEach(x => x.el.setAttribute('disabled', 'true'));
+    notice('Comparando alternativas e atendimento dos formandos…', false, true);
     const worker = new Worker('worker.js');
     let ended = false;
     const finish = () => { if (ended)
-        return; ended = true; clearTimeout(timer); worker.terminate(); busy = false; $$('button,select').forEach(el => el.removeAttribute('disabled')); $('#cancel-generation').hidden = true; };
+        return; ended = true; clearTimeout(timer); worker.terminate(); busy = false; controls.forEach(x => { if (!x.disabled) x.el.removeAttribute('disabled'); }); $('#cancel-generation').hidden = true; };
     const timer = setTimeout(() => { finish(); notice('Busca interrompida pelo tempo limite. A grade anterior foi preservada.', true); }, 16000);
     $('#cancel-generation').hidden = false;
     $('#cancel-generation').removeAttribute('disabled');
     $('#cancel-generation').onclick = () => { finish(); notice('Busca cancelada. Nenhuma grade foi alterada.'); };
     worker.onmessage = async (e) => { if (ended)
         return; if (e.data.progress) {
-        notice(e.data.progress);
+        notice(e.data.progress, false, true);
         return;
     } clearTimeout(timer); $('#cancel-generation').setAttribute('disabled', 'true'); try {
         if (e.data.error)
