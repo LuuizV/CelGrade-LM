@@ -212,18 +212,18 @@ export function hardIssues(d: DB, lessons: Lesson[], focus?: Set<string>): strin
             issues.add((d.subjects.find(x => x.id === o.subject)?.name || o.subject) + ': aula dupla fora de um bloco permitido.');
         for (let k = 0; k < a.length && (!focus || focus.has(a.id)); k++) {
             if (!r.available[a.day * 6 + a.slot + k])
-                issues.add('Sala indisponível: ' + r.name + ' para ' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + '.');
+                issues.add((d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ': a sala ' + r.name + ' não está marcada como disponível no cadastro.');
             if (!t.available[a.day * 6 + a.slot + k])
-                issues.add('Professor indisponível: ' + t.name + ' para ' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + '.');
+                issues.add((d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ': ' + t.name + ' não está marcado como disponível no cadastro.');
         }
         for (let j = 0; j < i; j++) {
             const b = lessons[j], ob = d.offers.find(x => x.id === b.offer);
             if (!ob || !overlap(a, b) || (focus && !focus.has(a.id) && !focus.has(b.id)))
                 continue;
             if (a.room === b.room)
-                issues.add('Sala ocupada: ' + r.name + ' já tem ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + ' nesse horário.');
+                issues.add((d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ': a sala ' + r.name + ' já está ocupada por ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '.');
             if (o.teacher === ob.teacher)
-                issues.add('Professor ocupado: ' + t.name + ' já está dando aula de ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '.');
+                issues.add((d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ': o professor ' + t.name + ' já está dando aula de ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '.');
             if (o.cohort === ob.cohort)
                 issues.add('Choque na turma: ' + d.cohorts.find(x => x.id === o.cohort)?.name + ' tem ' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ' e ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + ' ao mesmo tempo.');
         }
@@ -496,7 +496,7 @@ export function generate(d: DB, period: string, base: Plan | undefined, seed: nu
             return false;
         }
         if (search(tasks.length))
-            return { id: uid(), name: 'Alternativa ' + new Date().toLocaleTimeString('pt-BR'), period, lessons, created: new Date().toISOString() };
+            const created = new Date(); return { id: uid(), name: 'Alternativa ' + period + ' - ' + created.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }), period, lessons, created: created.toISOString() };
         anyTimeout ||= expired;
     }
     throw Error(anyTimeout ? 'Limite de busca atingido; isso não prova que não existe solução.' : 'Não existe grade viável com estas disponibilidades e aulas fixas.');
