@@ -3,7 +3,28 @@ export type Resource = {
     name: string;
     available: number[];
     description?: string;
+    module?: string;
 };
+/** Localização física da sala é independente de seu nome. Registros antigos são compatíveis. */
+export function roomFields(room: Resource): {name: string; module: string} {
+    if (typeof room.module === 'string') return {name: room.name, module: room.module};
+    const legacy = /^(.+?)\s+[-–—]\s+((?:M[oó]dulo\s+.+)|(?:Luiz[aã]o))$/iu.exec(room.name);
+    return legacy ? {name:legacy[1].trim(),module:legacy[2].trim()} : {name:room.name,module:''};
+}
+export function roomLabel(room: Resource): string {
+    const {name,module} = roomFields(room);
+    return module.trim() ? name + ' - ' + module : name;
+}
+export function normalizeRooms(d: DB): DB {
+    // Mantém IDs, referências e disponibilidades. Normaliza nomes legados em memória;
+    // o próximo salvamento grava a separação sem alterar as grades.
+    for (const room of d.rooms || []) {
+        const parts = roomFields(room);
+        room.name = parts.name;
+        room.module = parts.module;
+    }
+    return d;
+}
 export type Subject = {
     id: string;
     name: string;
@@ -108,6 +129,10 @@ export function validate(d: DB) {
     const display = (key: 'rooms' | 'teachers' | 'subjects' | 'cohorts', id: string) =>
         d[key].find(x => x.id === id)?.name || 'ID "' + String(id) + '"';
     const has = (key: 'rooms' | 'teachers' | 'subjects' | 'cohorts', id: string) => d[key].some(x => x.id === id);
+    for (const room of d.rooms) {
+        if (room.module !== undefined && (typeof room.module !== 'string' || room.module.length > 200))
+            validationError('Salas — ' + room.name, 'Módulo', 'o módulo da sala deve ter até 200 caracteres.', 'Informe um módulo válido.');
+    }
     for (const [kind,label] of [['rooms','Salas'],['teachers','Professores']] as const) {
         for (const r of d[kind]) {
             const local = label + ' — ' + r.name;
@@ -212,7 +237,7 @@ export function hardIssues(d: DB, lessons: Lesson[], focus?: Set<string>): strin
             issues.add((d.subjects.find(x => x.id === o.subject)?.name || o.subject) + ': aula dupla fora de um bloco permitido.');
         for (let k = 0; k < a.length && (!focus || focus.has(a.id)); k++) {
             if (!r.available[a.day * 6 + a.slot + k])
-                issues.add((d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ': a sala ' + r.name + ' não está marcada como disponível no cadastro.');
+                issues.add((d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ': a sala ' + roomLabel(r) + ' não está marcada como disponível no cadastro.');
             if (!t.available[a.day * 6 + a.slot + k])
                 issues.add((d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ': ' + t.name + ' não está marcado como disponível no cadastro.');
         }
@@ -221,7 +246,7 @@ export function hardIssues(d: DB, lessons: Lesson[], focus?: Set<string>): strin
             if (!ob || !overlap(a, b) || (focus && !focus.has(a.id) && !focus.has(b.id)))
                 continue;
             if (a.room === b.room)
-                issues.add((d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ': a sala ' + r.name + ' já está ocupada por ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '.');
+                issues.add((d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ': a sala ' + roomLabel(r) + ' já está ocupada por ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '.');
             if (o.teacher === ob.teacher)
                 issues.add((d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ': o professor ' + t.name + ' já está dando aula de ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '.');
             if (o.cohort === ob.cohort)

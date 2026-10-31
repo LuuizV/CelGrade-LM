@@ -8,6 +8,7 @@ declare global {
             markReleaseSeen?: () => Promise<void>;
             updateState?: () => Promise<{text: string; ready: boolean; available?: boolean}>;
             checkUpdates?: () => Promise<void>;
+            downloadUpdate?: () => Promise<void>;
             installUpdate?: () => Promise<boolean>;
             onUpdate?: (callback: (state: {text: string; ready: boolean; available?: boolean}) => void) => void;
             read: () => Promise<DB>;
@@ -95,16 +96,47 @@ function updatePlanSelect() {
     sel.dataset.status = p ? planStatus(p) : '';
     $('#rename-plan').toggleAttribute('disabled',!p);
     $('#delete-plan').toggleAttribute('disabled',!p);
+    $('#delete-all-plans').toggleAttribute('disabled',!db.plans.some(x=>x.period===period));
 }
 function hasCohortUndo(cohort: string) {return undo.some(x=>x.plan.id===planId && x.cohort===cohort);}
+async function deleteAllPlans() {
+    const count=db.plans.filter(x=>x.period===period).length;
+    if(!count || saving || busy) return;
+    if(!await confirmInApp('Excluir todas as alternativas',
+        'Excluir '+count+' alternativa(s) do período '+period+'? Os cadastros e as alternativas dos outros períodos serão preservados.',
+        'Excluir todas',true))return;
+    const n=structuredClone(db);n.plans=n.plans.filter(x=>x.period!==period);
+    try{await save(n,'Antes de excluir todas as alternativas de '+period);planId='';undo=[];render();notice(count+' alternativa(s) excluída(s).');}
+    catch(e){notice(explainError(e,'Excluir alternativas'),true)}
+}
 async function deletePlan() {
     const p=plan(); if (!p || busy || saving) return;
-    if (!confirm('Excluir a alternativa "' + p.name + '"? As demais serão preservadas.')) return;
+    if (!await confirmInApp('Excluir alternativa', 'Excluir "' + p.name + '"? As demais alternativas serão preservadas.', 'Excluir alternativa', true)) return;
     const n=structuredClone(db); n.plans=n.plans.filter(x=>x.id!==p.id);
     try {await save(n,'Antes de excluir alternativa');planId='';undo=[];render();notice('Alternativa excluída.');}
     catch(e){notice(explainError(e,'Excluir alternativa'),true);}
 }
-function name(kind: 'rooms' | 'teachers' | 'subjects' | 'cohorts', id: string) { return db[kind].find(x => x.id === id)?.name || 'Não encontrado'; }
+function name(kind: 'rooms' | 'teachers' | 'subjects' | 'cohorts', id: string) {
+    const item=db[kind].find(x=>x.id===id);
+    return item ? (kind==='rooms' ? Core.roomLabel(item as import('./core').Resource) : item.name) : 'Não encontrado';
+}
+function confirmInApp(title: string, message: string, action = 'Confirmar', dangerous = false): Promise<boolean> {
+    return new Promise(resolve => {
+        const dialog=document.createElement('dialog'); dialog.className='cel-confirm'; dialog.setAttribute('aria-label',title);
+        dialog.innerHTML='<div class="cel-confirm-head"><span class="cel-confirm-icon">!</span><h2>'+esc(title)+'</h2></div>'+
+          '<p class="cel-confirm-message">'+esc(message)+'</p><div class="cel-confirm-actions">'+
+          '<button type="button" data-choice="cancel">Cancelar</button><button type="button" class="'+(dangerous?'confirm-danger':'primary')+'" data-choice="yes">'+esc(action)+'</button></div>';
+        const previous=document.activeElement as HTMLElement|null;
+        let finished=false;
+        const finish=(ok:boolean)=>{if(finished)return;finished=true;dialog.close();dialog.remove();previous?.focus();resolve(ok);};
+        dialog.querySelector<HTMLButtonElement>('[data-choice="cancel"]')!.onclick=()=>finish(false);
+        dialog.querySelector<HTMLButtonElement>('[data-choice="yes"]')!.onclick=()=>finish(true);
+        dialog.addEventListener('cancel',e=>{e.preventDefault();finish(false)});
+        dialog.addEventListener('click',e=>{if(e.target===dialog)finish(false)});
+        document.body.append(dialog);dialog.showModal();
+        dialog.querySelector<HTMLButtonElement>('[data-choice="cancel"]')!.focus();
+    });
+}
 async function save(next: DB, reason = 'Alteração de ' + (labels[page] || page)) {
     if (saving)
         throw Error('Aguarde o salvamento em andamento.');
@@ -156,18 +188,19 @@ function renderSchedule() {
     if (!plan())
         planId = plans.at(-1)?.id || '';
     const p = plan();
-    $('#content').innerHTML = `<div class="panel no-print schedule-tools"><div class="actions"><div class="command-group"><small>GERAÇÃO</small><div class="actions">${button('generate','✦ Gerar outra alternativa','primary')}<select id="plans" aria-label="Selecionar alternativa" class="plan-select"><option value="">Selecione uma grade</option>${plans.map(x=>`<option value="${esc(x.id)}" data-status="${planStatus(x)}" ${x.id===planId?'selected':''}>${planStatus(x)==='green'?'🟢':planStatus(x)==='yellow'?'🟡':'🔴'} ${esc(x.name)}</option>`).join('')}</select>${button('rename-plan','Renomear')}${button('cancel-generation','Cancelar busca')}</div></div><div class="command-group"><small>ALTERNATIVAS</small><div class="actions">${button('delete-plan','Excluir alternativa','delete-action')}</div></div><div class="command-group"><small>EXPORTAÇÃO E VISUALIZAÇÃO</small><div class="actions">${button('pdf','Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div></div></div><p class="muted">As alternativas anteriores são preservadas. O cadeado fixa uma aula. Arraste ou clique na aula e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Botão direito altera a sala.</p>${!db.offers.length ? button('demo','Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
+    $('#content').innerHTML = `<div class="panel no-print schedule-tools"><div class="actions"><div class="command-group"><small>GERAÇÃO</small><div class="actions">${button('generate','✦ Gerar outra alternativa','primary')}<select id="plans" aria-label="Selecionar alternativa" class="plan-select"><option value="">Selecione uma grade</option>${plans.map(x=>`<option value="${esc(x.id)}" data-status="${planStatus(x)}" ${x.id===planId?'selected':''}>${planStatus(x)==='green'?'🟢':planStatus(x)==='yellow'?'🟡':'🔴'} ${esc(x.name)}</option>`).join('')}</select>${button('rename-plan','Renomear')}${button('cancel-generation','Cancelar busca')}</div></div><div class="command-group"><small>ALTERNATIVAS</small><div class="actions"><div class="delete-pair"><button id="delete-plan" class="delete-action" type="button" title="Excluir apenas a alternativa selecionada">${navIcons.delete}Excluir uma</button><button id="delete-all-plans" class="delete-action" type="button" title="Excluir todas as alternativas deste período">Excluir todas</button></div></div></div><div class="command-group"><small>EXPORTAÇÃO E VISUALIZAÇÃO</small><div class="actions">${button('pdf','Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div></div></div><p class="muted">As alternativas anteriores são preservadas. O cadeado fixa uma aula. Arraste ou clique na aula e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Botão direito altera a sala.</p>${!db.offers.length ? button('demo','Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
     $('#generate').onclick = generate;
     $('#cancel-generation').hidden = true;
     $<HTMLSelectElement>('#view').value = selectedView;
     $('#rename-plan').onclick = renamePlan;
     $('#plans').onchange = e => { planId = (e.target as HTMLSelectElement).value; undo = []; render(); };
     $('#delete-plan').onclick = deletePlan;
+    $('#delete-all-plans').onclick = deleteAllPlans;
     updatePlanSelect();
     $('#pdf').onclick = pdf;
     $('#view').onchange = () => { selectedView = $<HTMLSelectElement>('#view').value; clearDrag(); renderTables(); };
     if ($('#demo'))
-        $('#demo').onclick = async () => { if (!confirm('Carregar exemplo? Isso substituirá os cadastros e grades atuais.'))
+        $('#demo').onclick = async () => { if (!await confirmInApp('Carregar exemplo', 'Isso substituirá os cadastros e grades atuais.', 'Carregar exemplo', true))
             return; const n = Core.demo(); n.revision = db.revision; await save(n); period = db.periods[0]; render(); };
     if (p) {
         const q = Core.quality(db, p), reports = Core.graduateReport(db, p), hard = Core.hardIssues(db, p.lessons), missing = Core.completeness(db, p);
@@ -319,7 +352,7 @@ async function applyDrop(cell: HTMLElement) {
         notice('Movimento bloqueado.\n' + describeMovement(r.red, 'Quadro de horários — movimentação de aula'), true);
         return;
     }
-    if (r.yellow.length && !confirm('Atenção: este movimento altera o atendimento dos formandos.\n\n' + r.yellow.join('\n') + '\n\nPermitir esta exceção?'))
+    if (r.yellow.length && !await confirmInApp('Confirmar exceção de horário', r.yellow.join('\n'), 'Permitir exceção'))
         return;
     const previous = structuredClone(plan()!);
     if (Core.signature(previous) === Core.signature(r.plan))
@@ -358,7 +391,7 @@ async function undoMove(cohort: string) {
 async function pdf() { if (!plan()) {
     notice('Selecione uma grade primeiro.');
     return;
-} const p = plan()!; const issues = [...Core.hardIssues(db, p.lessons), ...Core.completeness(db, p)]; if (issues.length && !confirm('Esta grade tem pendências:\n' + issues.join('\n') + '\n\nExportar como rascunho?'))
+} const p = plan()!; const issues = [...Core.hardIssues(db, p.lessons), ...Core.completeness(db, p)]; if (issues.length && !await confirmInApp('Exportar grade com pendências', issues.join('\n'), 'Exportar rascunho'))
     return; try {
     if (window.desktop) {
         if (await window.desktop.pdf())
@@ -410,11 +443,11 @@ async function generate() {
     worker.onerror = e => { finish(); notice('Falha no gerador: ' + e.message, true); };
     worker.postMessage({ db, period, base: plan(), seed: Date.now() });
 }
-function renderList() { const key = page as 'rooms' | 'teachers' | 'subjects' | 'cohorts' | 'offers' | 'graduates'; const rows = db[key].filter(x => !('period' in x) || x.period === period); $('#content').innerHTML = `<div class="panel records-panel"><div class="actions">${button('add', '+ Adicionar', 'primary')}<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><table><thead><tr><th>Registro</th><th>Detalhes</th><th>Ações</th></tr></thead><tbody>${rows.map(x => { let title = 'name' in x ? x.name : name('subjects', x.subject); let detail = ''; if ('available' in x)
+function renderList() { const key = page as 'rooms' | 'teachers' | 'subjects' | 'cohorts' | 'offers' | 'graduates'; const rows = db[key].filter(x => !('period' in x) || x.period === period); $('#content').innerHTML = `<div class="panel records-panel"><div class="actions">${button('add', '+ Adicionar', 'primary')}<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><table><thead><tr><th>Registro</th>${page==='rooms'?'<th>Módulo</th>':''}<th>Detalhes</th><th>Ações</th></tr></thead><tbody>${rows.map(x => { let title = 'name' in x ? x.name : name('subjects', x.subject); let detail = ''; if ('available' in x)
     detail = x.available.filter(Boolean).length + ' horários disponíveis'; if ('stage' in x)
     detail = x.stage + 'º semestre · ' + (x.room ? name('rooms', x.room) : 'sala automática'); if ('load' in x)
     detail = name('teachers', x.teacher) + ' · ' + name('cohorts', x.cohort) + ' · ' + x.load + ' aulas/semana'; if ('subjects' in x)
-    detail = (x.active ? 'Ativo · ' : 'Inativo · ') + x.subjects.map(id => name('subjects', id)).join(', '); return `<tr><td><span class="record-label">${navIcons[key] || ''}${esc(title)}</span></td><td>${esc(detail)}</td><td><button class="edit-action" data-edit="${x.id}">${navIcons.edit}Editar</button> <button class="delete-action" data-delete="${x.id}">${navIcons.delete}Excluir</button></td></tr>`; }).join('')}</tbody></table>${rows.length ? '' : '<p class="muted">Nenhum cadastro ainda.</p>'}</div>`; $('#add').onclick = () => edit(null); $$('[data-edit]').forEach(b => b.onclick = () => edit(b.dataset.edit!)); $$('[data-delete]').forEach(b => b.onclick = () => remove(b.dataset.delete!)); }
+    detail = (x.active ? 'Ativo · ' : 'Inativo · ') + x.subjects.map(id => name('subjects', id)).join(', '); return `<tr><td><span class="record-label">${navIcons[key] || ''}${esc(title)}</span></td>${page==='rooms'?'<td>'+esc((x as import('./core').Resource).module || '—')+'</td>':''}<td>${esc(detail)}</td><td><button class="edit-action" data-edit="${x.id}">${navIcons.edit}Editar</button> <button class="delete-action" data-delete="${x.id}">${navIcons.delete}Excluir</button></td></tr>`; }).join('')}</tbody></table>${rows.length ? '' : '<p class="muted">Nenhum cadastro ainda.</p>'}</div>`; $('#add').onclick = () => edit(null); $$('[data-edit]').forEach(b => b.onclick = () => edit(b.dataset.edit!)); $$('[data-delete]').forEach(b => b.onclick = () => remove(b.dataset.delete!)); }
 function edit(id: string | null) {
     renamingPlan = null;
     editing = id;
@@ -434,7 +467,7 @@ function edit(id: string | null) {
     if (page === 'rooms' || page === 'teachers') {
         html += '<p>Disponibilidade semanal — marque quando pode receber aulas</p><div class="actions"><button type="button" id="all">Marcar todos</button><button type="button" id="none">Desmarcar todos</button></div><table class="availability"><tr><th>Horário</th>' + days.map(d => '<th>' + d + '</th>').join('') + '</tr>' + Core.times.map((t, slot) => '<tr><th>' + t + '</th>' + days.map((d, day) => `<td><input type="checkbox" name="available" aria-label="${d} ${t}" value="${day * 6 + slot}" ${(x.available || Array(30).fill(1))[day * 6 + slot] ? 'checked' : ''}></td>`).join('') + '</tr>').join('') + '</table>';
         if (page === 'rooms')
-            html += `<label>Descrição<textarea name="description">${esc(x.description || '')}</textarea></label>`;
+            html += field('module','Módulo (opcional)',x.module || '').replace(' required ',' ') + `<label>Descrição<textarea name="description">${esc(x.description || '')}</textarea></label>`;
     }
     if (page === 'cohorts')
         html += field('stage', 'Semestre do curso', x.stage || 1, 'number') + select('room', 'Sala preferencial', [{ id: '', name: 'Automática' }, ...db.rooms], x.room || '');
@@ -449,7 +482,7 @@ function edit(id: string | null) {
         $('#none').onclick = () => document.querySelectorAll<HTMLInputElement>('[name=available]').forEach(x => x.checked = false);
     $<HTMLDialogElement>('#editor').showModal();
 }
-async function remove(id: string) { if (!confirm('Excluir este registro? Registros referenciados por ofertas ou grades não podem ser excluídos.'))
+async function remove(id: string) { if (!await confirmInApp('Excluir cadastro', 'Registros usados em ofertas ou grades não podem ser excluídos.', 'Excluir cadastro', true))
     return; const n = structuredClone(db); (n as any)[page] = (n as any)[page].filter((x: any) => x.id !== id); try {
     await save(n);
     render();
@@ -474,8 +507,7 @@ $('#form').onsubmit = async (e) => { e.preventDefault(); if (renamingPlan) {
 } const f = new FormData(e.target as HTMLFormElement), n = structuredClone(db), rows = (n as any)[page] as any[], old = rows.find(x => x.id === editing); const x: any = { id: editing || Core.uid() }; if (page !== 'offers')
     x.name = String(f.get('name')).trim(); if (page === 'rooms' || page === 'teachers') {
     x.available = Array.from({ length: 30 }, (_, i) => f.getAll('available').includes(String(i)) ? 1 : 0);
-    if (page === 'rooms')
-        x.description = f.get('description');
+    if (page === 'rooms') { x.description = f.get('description'); x.module=String(f.get('module') || '').trim(); }
 } if (page === 'cohorts') {
     x.stage = Number(f.get('stage'));
     x.room = f.get('room');
@@ -516,7 +548,7 @@ function renderBackup() { $('#content').innerHTML = `<div class="panel"><h2>Seus
     window.desktop.export().catch(e => notice(String(e), true));
 else
     download(JSON.stringify(db, null, 2), 'CelGrade-LM-backup.json'); }; async function restore(n: DB | null) { if (!n)
-    return; if (!confirm('Substituir todos os dados pelo backup? Exporte um backup atual antes de continuar.'))
+    return; if (!await confirmInApp('Restaurar backup', 'Isso substituirá todos os dados atuais. Exporte um backup antes de continuar.', 'Restaurar dados', true))
     return; n.revision = db.revision; await save(n, 'Antes de restaurar backup'); undo = []; period = db.periods[0]; planId = ''; render(); notice('Backup restaurado, incluindo grades.'); } $('#import').onclick = async () => { try {
     if (window.desktop)
         await restore(await window.desktop.import());
@@ -543,7 +575,7 @@ async function showRecovery() {
     }
     const rows = await window.desktop.history();
     $('#recovery-list').innerHTML = '<h3>Últimos 30 estados anteriores</h3><p class="muted">Restaurar substitui todos os dados. O estado atual também é guardado antes da restauração.</p>' + rows.map(r => `<p><button data-recover="${r.id}">Restaurar</button> ${esc(new Date(r.created).toLocaleString('pt-BR'))} · ${esc(r.reason)}</p>`).join('');
-    $$('[data-recover]').forEach(b => b.onclick = async () => { if (!confirm('Restaurar todos os cadastros e grades para este ponto?'))
+    $$('[data-recover]').forEach(b => b.onclick = async () => { if (!await confirmInApp('Recuperar dados', 'Todos os cadastros e grades serão restaurados para este ponto.', 'Restaurar dados', true))
         return; db = await window.desktop!.restoreHistory(Number(b.dataset.recover), db.revision); undo = []; period = db.periods[0]; planId = ''; render(); notice('Estado anterior restaurado. O estado substituído está no histórico.'); });
 }
 $('#period').onchange = () => { period = $<HTMLSelectElement>('#period').value; planId = ''; undo = []; render(); };
@@ -561,19 +593,43 @@ catch (e) {
 
 function initUpdateControls(dialog: HTMLDialogElement) {
     if (!window.desktop?.updateState) return;
-    const status = document.createElement('div'); status.className = 'panel no-print'; status.setAttribute('role', 'status');
-    const message = document.createElement('span');
-    const check = document.createElement('button'); check.textContent = 'Verificar atualizações';
-    const install = document.createElement('button'); install.textContent = 'Instalar e reiniciar'; install.hidden = true;
-    status.append(message, check, install); dialog.querySelector('#release-intro')!.after(status);
-    const show = (s: {text: string; ready: boolean; available?: boolean}) => { message.textContent = s.text + ' '; install.hidden = !s.ready; const available = !!s.available || s.ready; const version = $('#app-version'); version.classList.toggle('update-available', available); version.textContent = `Versão ${ReleaseHistory.version} · ${available ? '! Atualização disponível' : 'Ver mudanças'}`; version.setAttribute('aria-label', version.textContent); version.title = available ? s.text : 'Histórico de atualizações'; };
-    window.desktop.onUpdate?.(show); window.desktop.updateState().then(show).catch(() => {});
-    check.onclick = async () => { check.disabled = true; try { await window.desktop!.checkUpdates!(); } finally { check.disabled = false; } };
-    install.onclick = async () => {
-        if (busy || saving || document.querySelector('dialog[open]:not(#release-history)')) { notice('Termine a geração, o salvamento ou a edição aberta antes de instalar.', true); return; }
-        document.body.inert = true;
-        try { await window.desktop!.installUpdate!(); } catch { notice('Não foi possível instalar a atualização.', true); }
-        finally { document.body.inert = false; }
+    const status=document.createElement('section');status.className='update-card';
+    status.innerHTML='<div class="update-card-top"><span class="update-card-icon" aria-hidden="true">↻</span><div class="update-card-copy"><strong id="update-heading">Verificar atualizações</strong><p id="update-message" role="status">Consulte a versão disponível sem sair do CelGrade.</p></div></div>'+
+       '<div id="update-progress-wrap" hidden><div class="update-progress-bar" role="progressbar" aria-label="Progresso do download" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="update-progress"></span></div><div id="update-progress-detail"></div></div>'+
+       '<div class="update-actions"><button type="button" id="update-check">Verificar atualizações</button><button type="button" class="primary" id="update-download" hidden>Baixar atualização</button><button type="button" class="primary" id="update-install" hidden>Instalar e reiniciar</button><button type="button" id="update-later" hidden>Mais tarde</button></div>';
+    dialog.querySelector('#release-intro')!.after(status);
+    const heading=status.querySelector<HTMLElement>('#update-heading')!,message=status.querySelector<HTMLElement>('#update-message')!,
+      check=status.querySelector<HTMLButtonElement>('#update-check')!,download=status.querySelector<HTMLButtonElement>('#update-download')!,
+      install=status.querySelector<HTMLButtonElement>('#update-install')!,later=status.querySelector<HTMLButtonElement>('#update-later')!,
+      wrap=status.querySelector<HTMLElement>('#update-progress-wrap')!,bar=status.querySelector<HTMLElement>('.update-progress-bar')!,
+      fill=status.querySelector<HTMLElement>('#update-progress')!,details=status.querySelector<HTMLElement>('#update-progress-detail')!;
+    const show=(s:{text:string;ready:boolean;available?:boolean;downloading?:boolean;checking?:boolean;version?:string;percent?:number;transferred?:number;total?:number;bytesPerSecond?:number})=>{
+        message.textContent=s.text;
+        const active=!!s.available||s.ready;
+        heading.textContent=s.ready?'Atualização pronta para instalar':s.downloading?'Baixando atualização'+(s.version?' '+s.version:''):active?'Nova versão '+(s.version||'')+' disponível':s.checking?'Procurando atualizações…':'Atualizações';
+        check.disabled=!!s.checking||!!s.downloading;
+        download.hidden=!active||!!s.ready||!!s.downloading;
+        download.disabled=!!s.checking;
+        install.hidden=!s.ready;
+        later.hidden=!active||!!s.downloading;
+        wrap.hidden=!s.downloading;
+        if(s.downloading){
+          const percent=Math.max(0,Math.min(100,s.percent||0));
+          fill.style.width=percent+'%';bar.setAttribute('aria-valuenow',String(Math.round(percent)));
+          const mb=(x:number)=> (x/1048576).toFixed(1)+' MB';
+          details.textContent=Math.round(percent)+'% · '+mb(s.transferred||0)+' de '+mb(s.total||0)+(s.bytesPerSecond?' · '+mb(s.bytesPerSecond)+'/s':'');
+        }
+        const version=$('#app-version');version.classList.toggle('update-available',active);version.textContent='Versão '+ReleaseHistory.version+' · '+(active?'! Atualização disponível':'Ver mudanças');
+        version.title=active?s.text:'Histórico de atualizações';
+    };
+    window.desktop.onUpdate?.(show);void window.desktop.updateState().then(show).catch(()=>{});
+    check.onclick=async()=>{check.disabled=true;try{await window.desktop!.checkUpdates!()}catch(e){notice(String(e),true)}finally{check.disabled=false}};
+    download.onclick=async()=>{download.disabled=true;try{await window.desktop!.downloadUpdate!()}catch(e){notice(String(e),true)}finally{download.disabled=false}};
+    later.onclick=()=>dialog.close();
+    install.onclick=async()=>{
+      if(busy||saving||document.querySelector('dialog[open]:not(#release-history)')){notice('Conclua a operação atual antes de instalar.',true);return;}
+      if(!await confirmInApp('Instalar atualização','Será criado um backup antes de instalar e reiniciar o aplicativo.','Instalar e reiniciar'))return;
+      try{await window.desktop!.installUpdate!()}catch(e){notice('Instalação não iniciada: '+String(e),true)}
     };
 }
 

@@ -66,3 +66,12 @@ test('0.9.0: avisos explicam causa da indisponibilidade ou ocupação',()=>{
   assert(issues.some(s=>s.includes('não está marcada como disponível')&&s.includes('Algoritmos')));
   assert(issues.some(s=>s.includes('já está ocupada por')&&s.includes('Algoritmos')&&s.includes('Cálculo I')));
 });
+
+test('0.9.2: nomes antigos de salas podem ser separados sem perder IDs',()=>{
+ const d=C.demo();d.rooms[0].name='Sala 06 - Módulo I';
+ C.normalizeRooms(d);
+ assert.equal(d.rooms[0].name,'Sala 06');
+ assert.equal(d.rooms[0].module,'Módulo I');
+ assert.equal(C.roomLabel(d.rooms[0]),'Sala 06 - Módulo I');
+ C.validate(d);
+});

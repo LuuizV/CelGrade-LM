@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.9.2",
+    "date": "2026-10-31",
+    "title": "Fluxos integrados e cadastros mais organizados",
+    "changes": {
+      "Atualizações": [
+        "Consultar e baixar atualizações sem janelas externas; ações integradas ao Histórico de atualizações.",
+        "Progresso do download com barra, porcentagem, tamanho e velocidade; instalação depende de confirmação e backup."
+      ],
+      "Salas": [
+        "Campo de módulo com texto livre, sem sugestões, separado do nome da sala.",
+        "Listagem com colunas próprias para sala, módulo e disponibilidade; nomes antigos compatíveis e normalizados."
+      ],
+      "Alternativas": [
+        "Controle compacto para excluir uma ou todas as alternativas do período, com confirmação e histórico."
+      ],
+      "Interface": [
+        "Confirmações com janela interna ao CelGrade LM e botões claros, incluindo exceções no quadro."
+      ]
+    }
+  },
+  {
     "version": "0.9.1",
     "date": "2026-10-31",
     "title": "PDF mais limpo, branco e legível",

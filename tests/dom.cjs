@@ -156,3 +156,25 @@ test('0.9.1: impressão possui página branca e cartões em horários separados'
   assert.match(css,/\.print-grid \.print-lesson strong\{font-size:11px!important/);
  }finally{await a.close();}
 });
+
+test('0.9.2: botões compactos e diálogo integrado sem janela nativa',async()=>{
+ const a=await app();try{const {w,$,store}=a;
+  assert($('#delete-all-plans'));assert($('#delete-plan'));
+  $('#delete-all-plans').click();await tick();
+  assert(w.document.querySelector('dialog.cel-confirm[open]'));
+  w.document.querySelector('.cel-confirm [data-choice="cancel"]').click();await tick();
+  assert.equal(store.read().plans.length,1);
+  $('#delete-all-plans').click();await tick();
+  w.document.querySelector('.cel-confirm [data-choice="yes"]').click();await tick();
+  assert.equal(store.read().plans.length,0);
+ }finally{await a.close();}
+});
+test('0.9.2: salas mostram módulo em coluna separada',async()=>{
+ const a=await app();try{const {w,$,store}=a;
+  $('[data-page="rooms"]').click();assert($('#content').textContent.includes('Módulo'));
+  $('[data-edit="r1"]').click();assert($('input[name="module"]'));
+  $('input[name="module"]').value='Módulo I';
+  $('#form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();
+  assert.equal(store.read().rooms[0].module,'Módulo I');
+ }finally{await a.close()}
+});
