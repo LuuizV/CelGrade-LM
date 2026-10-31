@@ -188,7 +188,7 @@ function renderTables() {
     });
     $$('[data-lock]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (busy || saving)
         return; const n = structuredClone(db), p2 = n.plans.find(x => x.id === planId)!; const l = p2.lessons.find(x => x.id === b.dataset.lock)!; l.locked = !l.locked; await save(n, 'Antes de fixar/destravar aula'); undo = []; render(); const changed = document.querySelector<HTMLElement>('[data-lock="' + l.id + '"]'); changed?.classList.add('lock-transition'); changed?.addEventListener('animationend', () => changed.classList.remove('lock-transition'), {once:true}); });
-    $('[draggable=true]').forEach(el => {
+    $$('[draggable=true]').forEach(el => {
         el.ondragstart = e => { dragId = el.dataset.lesson!; e.dataTransfer!.setData('text/plain', dragId); const ghost = document.createElement('div'); ghost.className = 'drag-preview'; ghost.textContent = el.querySelector('b')?.textContent || 'Aula'; document.body.append(ghost); e.dataTransfer!.setDragImage(ghost, 0, 0); setTimeout(() => ghost.remove(), 0); paintTargets(); };
         el.ondragend = clearDrag;
         el.onclick = e => { e.stopPropagation(); if (busy)
