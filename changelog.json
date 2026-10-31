@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.9.6",
+    "date": "2026-10-31",
+    "title": "Jasmim integrado e navegação mais fluida",
+    "changes": {
+      "Interface": [
+        "Novo logotipo completo na barra lateral, com o LM discreto e folhagem sob o nome.",
+        "Barra superior com apenas o ícone do jasmim e o lema, sem duplicar a marca.",
+        "Transições entre abas mais suaves, sem repetir animações ao editar horários.",
+        "Botões do atualizador padronizados."
+      ],
+      "Períodos letivos": [
+        "Gerenciamento em uma única página com seletor de período em uso, cadastro e listagem de semestres.",
+        "Período ativo lembrado entre reinicializações no mesmo computador."
+      ],
+      "Windows": [
+        "Ícone do jasmim aplicado ao executável, instalador e atalhos.",
+        "Instalação silenciosa após confirmação e backup, seguida da reinicialização do aplicativo."
+      ]
+    }
+  },
+  {
     "version": "0.9.5",
     "date": "2026-10-31",
     "title": "Identidade Jasmim e interface mais leve",

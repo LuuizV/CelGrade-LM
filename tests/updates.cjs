@@ -3,7 +3,7 @@ function harness({available=true,failBackup=false}={}){
  const updater=new EventEmitter(),handlers={},calls=[],messages=[];
  Object.assign(updater,{checkForUpdates:async()=>{updater.emit(available?'update-available':'update-not-available');return {updateInfo:{version:'0.9.2'}}},
  downloadUpdate:async()=>{calls.push('download');updater.emit('download-progress',{percent:42,transferred:42,total:100,bytesPerSecond:10});updater.emit('update-downloaded');},
- quitAndInstall:()=>calls.push('install')});
+ quitAndInstall:(silent,restart)=>{assert.equal(silent,true);assert.equal(restart,true);calls.push('install')}});
  const file={writeFile:async data=>{assert.equal(JSON.parse(data).revision,7);calls.push('backup')},sync:async()=>calls.push('sync'),close:async()=>{}};
  const fakeFs={mkdir:async()=>{},open:async()=>{if(failBackup)throw Error('disk');return file}};
  const electron={app:{isPackaged:true,getVersion:()=> '0.9.1',getPath:()=>'/data'},ipcMain:{handle:(n,f)=>handlers[n]=f}};

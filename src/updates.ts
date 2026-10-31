@@ -65,8 +65,9 @@ export function setupUpdates(win: BrowserWindow, store: Store) {
             const handle=await fs.open(file,'wx',0o600);
             try{await handle.writeFile(JSON.stringify(store.read(),null,2));await handle.sync();}
             finally{await handle.close();}
-            send('Backup criado. Iniciando instalação…');
-            autoUpdater.quitAndInstall(false,true);
+            send('Backup criado. O CelGrade será reiniciado com a nova versão…');
+            // NSIS instala em modo silencioso após fechar a aplicação; conserva o reinício.
+            autoUpdater.quitAndInstall(true,true);
             return true;
         }catch{send('Não foi possível criar o backup ou iniciar o instalador. Seus dados foram preservados.');return false;}
         finally{installing=false;}
