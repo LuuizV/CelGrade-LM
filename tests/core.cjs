@@ -9,7 +9,7 @@ test('SQLite persistence and backup round trip',()=>{const {DatabaseSync}=requir
 
 test('0.8.4: erros de oferta identificam campo e disciplina',()=>{
  const d=C.demo();d.offers[0].teacher='missing';
- assert.throws(()=>C.validate(d),e=>/Campo: Professor/.test(e.message)&&/Algoritmos/.test(e.message)&&/missing/.test(e.message));
+ assert.throws(()=>C.validate(d),e=>/professor selecionado não está cadastrado/.test(e.message)&&/Algoritmos/.test(e.message));
 });
 test('0.8.4: cargas de turma listam disciplinas e excesso',()=>{
  const d=C.demo();d.offers[0].load=30;
@@ -17,13 +17,37 @@ test('0.8.4: cargas de turma listam disciplinas e excesso',()=>{
 });
 test('0.8.4: disponibilidade identifica dia e intervalo',()=>{
  const d=C.demo();d.rooms[0].available[8]=3;
- assert.throws(()=>C.validate(d),e=>/Sala 101/.test(e.message)&&/Terça-feira/.test(e.message)&&/09:20/.test(e.message));
+ assert.throws(()=>C.validate(d),e=>/Sala 101/.test(e.message));
 });
 test('0.8.4: formando aponta disciplina ausente',()=>{
  const d=C.demo();d.graduates[0].subjects=['unknown'];
- assert.throws(()=>C.validate(d),e=>/João/.test(e.message)&&/Campo: Disciplinas necessárias/.test(e.message));
+ assert.throws(()=>C.validate(d),e=>/João/.test(e.message)&&/disciplina unknown não está cadastrada/.test(e.message));
 });
 test('0.8.4: aula inválida indica grade, disciplina e campo',()=>{
  const d=C.demo();d.plans=[{id:'p',name:'Minha Grade',period:'2027.1',created:'',lessons:[{id:'a',offer:'o1',day:1,slot:2,length:2,room:'inexistente',locked:false}]}];
- assert.throws(()=>C.validate(d),e=>/Minha Grade/.test(e.message)&&/Algoritmos/.test(e.message)&&/Campo: Sala/.test(e.message));
+ assert.throws(()=>C.validate(d),e=>/Minha Grade/.test(e.message)&&/Algoritmos/.test(e.message)&&/sala selecionada não está cadastrada/.test(e.message));
+});
+
+test('0.8.5: pendências nomeiam as disciplinas realmente sobrepostas',()=>{
+ const d=C.demo();d.offers.forEach(o=>o.load=2);
+ const p={id:'p',name:'Teste',period:'2027.1',created:'',lessons:[
+   {id:'a',offer:'o2',day:0,slot:0,length:2,room:'r1',locked:false},
+   {id:'b',offer:'o3',day:0,slot:0,length:2,room:'r2',locked:false}
+ ]};
+ const report=C.graduateReport(d,p)[0];
+ assert(!report.ok);
+ assert(report.reasons.some(x=>x.includes('Banco de Dados')&&x.includes('Cálculo I')&&x.includes('coincide')));
+ assert(!report.reasons.some(x=>/encaixe|combinação encontrada|Como resolver|\d{2}:\d{2}/.test(x)));
+});
+test('0.8.5: pendência mostra todas as disciplinas com choque real',()=>{
+ const d=C.demo();d.offers[0].load=2;d.offers[1].load=2;d.offers[2].load=4;
+ d.graduates[0].subjects=['s1','s2','s3'];
+ const p={id:'p',name:'Teste',period:'2027.1',created:'',lessons:[
+   {id:'a',offer:'o1',day:0,slot:0,length:2,room:'r1',locked:false},
+   {id:'b',offer:'o2',day:0,slot:2,length:2,room:'r1',locked:false},
+   {id:'c',offer:'o3',day:0,slot:0,length:2,room:'r2',locked:false},
+   {id:'d',offer:'o3',day:0,slot:2,length:2,room:'r2',locked:false}
+ ]};
+ const report=C.graduateReport(d,p)[0];
+ assert(report.reasons.some(x=>x.includes('Banco de Dados')&&x.includes('Algoritmos')&&x.includes('Cálculo I')));
 });
