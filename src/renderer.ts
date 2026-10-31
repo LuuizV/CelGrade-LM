@@ -83,6 +83,7 @@ function explainError(error: unknown, location: string): string {
         [/Não existe grade viável/i, 'Confira a disponibilidade de salas e professores, as aulas fixas e a carga das ofertas.'],
         [/fetch|network|ECONN|ENOTFOUND/i, 'Verifique a conexão de rede e tente novamente.'],
     ];
+    if (/^Local: .+\nCampo: /s.test(detail)) return detail;
     const hint = hints.find(([pattern]) => pattern.test(detail))?.[1];
     return 'Local: ' + location + '\nProblema: ' + detail + (hint ? '\nComo resolver: ' + hint : '\nComo resolver: revise os dados desta operação e tente novamente. Se persistir, consulte o backup ou registre os detalhes do erro.');
 }

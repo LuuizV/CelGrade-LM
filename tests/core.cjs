@@ -6,3 +6,24 @@ test('yellow student conflict and alternate offering selection',()=>{const d=C.d
 test('both directions of swap checked',()=>{const d=C.demo();d.offers.forEach(o=>o.load=2);const p={id:'p',name:'Test',period:'2027.1',created:'',lessons:[{id:'a',offer:'o1',day:0,slot:0,length:2,room:'r1',locked:false},{id:'b',offer:'o2',day:1,slot:0,length:2,room:'r1',locked:false}]};d.teachers[1].available[0]=0;assert(C.move(d,p,'a',1,0,'r1').red.some(s=>s.includes('indisponível')));});
 test('invalid references and impossible availability',()=>{let d=C.demo();d.offers[0].teacher='missing';assert.throws(()=>C.validate(d));d=C.demo();d.teachers[0].available.fill(0);assert.throws(()=>C.generate(d,'2027.1',undefined,1));});
 test('SQLite persistence and backup round trip',()=>{const {DatabaseSync}=require('node:sqlite');const fs=require('node:fs'),os=require('node:os'),path=require('node:path');const dir=fs.mkdtempSync(path.join(os.tmpdir(),'celgrade-'));const file=path.join(dir,'test.sqlite');let sql=new DatabaseSync(file);sql.exec('CREATE TABLE state(data TEXT)');const d=C.demo();d.plans.push(C.generate(d,'2027.1',undefined,9));sql.prepare('INSERT INTO state VALUES(?)').run(JSON.stringify(d));sql.close();sql=new DatabaseSync(file);const result=JSON.parse(sql.prepare('SELECT data FROM state').get().data);C.validate(result);assert.deepEqual(result,d);sql.close();});
+
+test('0.8.4: erros de oferta identificam campo e disciplina',()=>{
+ const d=C.demo();d.offers[0].teacher='missing';
+ assert.throws(()=>C.validate(d),e=>/Campo: Professor/.test(e.message)&&/Algoritmos/.test(e.message)&&/missing/.test(e.message));
+});
+test('0.8.4: cargas de turma listam disciplinas e excesso',()=>{
+ const d=C.demo();d.offers[0].load=30;
+ assert.throws(()=>C.validate(d),e=>/Computação A/.test(e.message)&&/Cálculo I/.test(e.message)&&/34 aulas/.test(e.message));
+});
+test('0.8.4: disponibilidade identifica dia e intervalo',()=>{
+ const d=C.demo();d.rooms[0].available[8]=3;
+ assert.throws(()=>C.validate(d),e=>/Sala 101/.test(e.message)&&/Terça-feira/.test(e.message)&&/09:20/.test(e.message));
+});
+test('0.8.4: formando aponta disciplina ausente',()=>{
+ const d=C.demo();d.graduates[0].subjects=['unknown'];
+ assert.throws(()=>C.validate(d),e=>/João/.test(e.message)&&/Campo: Disciplinas necessárias/.test(e.message));
+});
+test('0.8.4: aula inválida indica grade, disciplina e campo',()=>{
+ const d=C.demo();d.plans=[{id:'p',name:'Minha Grade',period:'2027.1',created:'',lessons:[{id:'a',offer:'o1',day:1,slot:2,length:2,room:'inexistente',locked:false}]}];
+ assert.throws(()=>C.validate(d),e=>/Minha Grade/.test(e.message)&&/Algoritmos/.test(e.message)&&/Campo: Sala/.test(e.message));
+});

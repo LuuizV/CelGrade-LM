@@ -59,40 +59,133 @@ export type DB = {
 export const times = ['07:30–08:20', '08:20–09:10', '09:20–10:10', '10:10–11:00', '11:00–11:50', '11:50–12:40'];
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 export function empty(): DB { return { revision: 0, periods: ['2027.1'], rooms: [], teachers: [], subjects: [], cohorts: [], offers: [], graduates: [], plans: [] }; }
+const weekDays = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira'];
+function lessonWhen(day: number, slot: number): string {
+    const dayName = weekDays[day] || 'Dia inválido (' + day + ')';
+    return dayName + ', ' + (times[slot] || 'horário inválido (' + slot + ')');
+}
+function validationError(local: string, field: string, problem: string, solution: string): never {
+    throw Error('Local: ' + local + '\nCampo: ' + field + '\nProblema: ' + problem + '\nComo resolver: ' + solution);
+}
 export function validate(d: DB) {
-    const fail = (ok: unknown, msg: string) => { if (!ok)
-        throw Error(msg); };
-    fail(d && Number.isInteger(d.revision), 'Banco inválido');
-    fail(Array.isArray(d.periods) && d.periods.length > 0 && d.periods.every(p => /^\d{4}\.[12]$/.test(p)) && new Set(d.periods).size === d.periods.length, 'Períodos devem ter formato 2027.1 ou 2027.2');
-    for (const k of ['rooms', 'teachers', 'subjects', 'cohorts', 'offers', 'graduates', 'plans'] as const) {
-        fail(Array.isArray(d[k]) && d[k].length <= 1000, 'Coleção inválida: ' + k);
-        const ids = new Set();
-        for (const x of d[k]) {
-            fail(x && typeof x.id === 'string' && /^[A-Za-z0-9_-]{1,120}$/.test(x.id) && !ids.has(x.id), 'ID inválido');
+    if (!d || !Number.isInteger(d.revision))
+        validationError('Dados e backup', 'Revisão do banco', 'Banco inválido: número de revisão ausente ou incorreto.', 'Restaure um backup válido ou reabra os dados originais.');
+    if (!Array.isArray(d.periods) || !d.periods.length)
+        validationError('Períodos letivos', 'Período', 'Nenhum período letivo foi cadastrado.', 'Cadastre um período como 2027.1.');
+    const periods = new Set<string>();
+    for (const p of d.periods) {
+        if (typeof p !== 'string' || !/^\d{4}\.[12]$/.test(p))
+            validationError('Períodos letivos', 'Período', 'Período inválido: "' + String(p) + '".', 'Use AAAA.1 ou AAAA.2 (ex.: 2027.1).');
+        if (periods.has(p))
+            validationError('Períodos letivos', 'Período', 'O período ' + p + ' está cadastrado mais de uma vez.', 'Remova o período repetido.');
+        periods.add(p);
+    }
+    const collections: {key: keyof DB; label: string}[] = [
+        {key:'rooms',label:'Salas'}, {key:'teachers',label:'Professores'},
+        {key:'subjects',label:'Disciplinas'}, {key:'cohorts',label:'Turmas / etapas'},
+        {key:'offers',label:'Ofertas de disciplinas'}, {key:'graduates',label:'Formandos'},
+        {key:'plans',label:'Quadro de horários'}
+    ];
+    for (const {key,label} of collections) {
+        const list = d[key];
+        if (!Array.isArray(list) || list.length > 1000)
+            validationError(label, 'Registros', 'Coleção inválida: ' + key + ' (ausente ou com mais de 1000 registros).', 'Verifique o arquivo de dados ou restaure um backup válido.');
+        const ids = new Set<string>();
+        for (const x of list as {id:string;name?:string}[]) {
+            const where = label + ' — ' + (x?.name || 'registro sem nome') + ' (ID ' + String(x?.id) + ')';
+            if (!x || typeof x.id !== 'string' || !/^[A-Za-z0-9_-]{1,120}$/.test(x.id))
+                validationError(where, 'Identificador', 'ID inválido.', 'Restaure um backup íntegro; o identificador deve ter letras, números, _ ou -.');
+            if (ids.has(x.id))
+                validationError(where, 'Identificador', 'O ID "' + x.id + '" está duplicado em ' + label + '.', 'Remova ou corrija o registro duplicado no arquivo de dados.');
             ids.add(x.id);
         }
     }
+    const display = (key: 'rooms' | 'teachers' | 'subjects' | 'cohorts', id: string) =>
+        d[key].find(x => x.id === id)?.name || 'ID "' + String(id) + '"';
     const has = (key: 'rooms' | 'teachers' | 'subjects' | 'cohorts', id: string) => d[key].some(x => x.id === id);
-    for (const r of [...d.rooms, ...d.teachers])
-        fail(Array.isArray(r.available) && r.available.length === 30 && r.available.every(x => x === 0 || x === 1), 'Disponibilidade inválida');
-    for (const r of [...d.rooms, ...d.teachers, ...d.subjects, ...d.cohorts, ...d.graduates, ...d.plans])
-        fail(typeof r.name === 'string' && r.name.trim().length > 0 && r.name.length <= 200, 'Nome obrigatório, até 200 caracteres');
-    for (const c of d.cohorts)
-        fail(Number.isInteger(c.stage) && c.stage > 0 && (!c.room || has('rooms', c.room)), 'Etapa ou sala da turma inválida');
-    for (const o of d.offers)
-        fail(has('subjects', o.subject) && has('teachers', o.teacher) && has('cohorts', o.cohort) && d.periods.includes(o.period) && Number.isInteger(o.load) && o.load > 0 && o.load <= 30, 'Oferta inválida: confira vínculos e carga');
-    for (const c of d.cohorts)
-        for (const p of d.periods)
-            fail(d.offers.filter(o => o.cohort === c.id && o.period === p).reduce((n, o) => n + o.load, 0) <= 30, 'Turma ' + c.name + ' excede 30 aulas semanais');
-    for (const g of d.graduates)
-        fail(typeof g.active === 'boolean' && d.periods.includes(g.period) && Array.isArray(g.subjects) && g.subjects.every(s => has('subjects', s)) && new Set(g.subjects).size === g.subjects.length, 'Formando inválido');
+    for (const [kind,label] of [['rooms','Salas'],['teachers','Professores']] as const) {
+        for (const r of d[kind]) {
+            const local = label + ' — ' + r.name;
+            if (!Array.isArray(r.available) || r.available.length !== 30)
+                validationError(local, 'Disponibilidade semanal', 'A disponibilidade deve conter exatamente 30 horários (5 dias × 6 aulas).', 'Abra o cadastro, revise a disponibilidade e salve novamente.');
+            const invalid = r.available.findIndex(value => value !== 0 && value !== 1);
+            if (invalid !== -1)
+                validationError(local, 'Disponibilidade semanal', 'Valor inválido em ' + lessonWhen(Math.floor(invalid / 6), invalid % 6) + '.', 'Marque ou desmarque o horário correspondente.');
+        }
+    }
+    for (const [key,label] of collections.filter(x => x.key !== 'offers') as {key:'rooms'|'teachers'|'subjects'|'cohorts'|'graduates'|'plans';label:string}[]) {
+        for (const r of d[key] as {id:string;name:string}[]) {
+            if (typeof r.name !== 'string' || !r.name.trim() || r.name.length > 200)
+                validationError(label + ' — ' + (r.name || 'registro sem nome') + ' (ID ' + r.id + ')', 'Nome', 'Nome obrigatório, até 200 caracteres.', 'Preencha um nome válido, sem deixá-lo em branco.');
+        }
+    }
+    for (const c of d.cohorts) {
+        if (!Number.isInteger(c.stage) || c.stage <= 0)
+            validationError('Turmas / etapas — ' + c.name, 'Semestre do curso', 'Semestre inválido: ' + c.stage + '.', 'Informe um número inteiro maior que zero.');
+        if (c.room && !has('rooms', c.room))
+            validationError('Turmas / etapas — ' + c.name, 'Sala preferencial', 'A sala "' + c.room + '" não está cadastrada.', 'Selecione uma sala existente ou Automática.');
+    }
+    for (const o of d.offers) {
+        const local = 'Ofertas de disciplinas — ' + display('subjects',o.subject) + ' / ' + display('cohorts',o.cohort) + ' (ID ' + o.id + ')';
+        if (!has('subjects',o.subject))
+            validationError(local,'Disciplina','A disciplina "' + o.subject + '" não existe.', 'Selecione uma disciplina cadastrada.');
+        if (!has('teachers',o.teacher))
+            validationError(local,'Professor','O professor "' + o.teacher + '" não existe.', 'Selecione um professor cadastrado.');
+        if (!has('cohorts',o.cohort))
+            validationError(local,'Turma','A turma "' + o.cohort + '" não existe.', 'Selecione uma turma cadastrada.');
+        if (!d.periods.includes(o.period))
+            validationError(local,'Período letivo','O período "' + o.period + '" não existe.', 'Selecione um período letivo cadastrado.');
+        if (!Number.isInteger(o.load) || o.load <= 0 || o.load > 30)
+            validationError(local,'Aulas semanais de 50 minutos','Carga inválida: ' + String(o.load) + ' aula(s) por semana.', 'Informe um número inteiro de 1 a 30.');
+    }
+    for (const c of d.cohorts) for (const p of d.periods) {
+        const offers = d.offers.filter(o => o.cohort === c.id && o.period === p);
+        const total = offers.reduce((n, o) => n + o.load, 0);
+        if (total > 30)
+            validationError('Turmas / etapas — ' + c.name + ' · ' + p, 'Aulas semanais de 50 minutos', 'A turma tem ' + total + ' aulas por semana, mas o limite é 30 (' + offers.map(o => display('subjects',o.subject) + ': ' + o.load).join('; ') + ').', 'Reduza a carga de uma das ofertas dessa turma até o total ser no máximo 30.');
+    }
+    for (const g of d.graduates) {
+        const local = 'Formandos — ' + g.name;
+        if (typeof g.active !== 'boolean')
+            validationError(local,'Ativo','O estado de participação é inválido.', 'Marque ou desmarque a opção de considerar no planejamento.');
+        if (!d.periods.includes(g.period))
+            validationError(local,'Período letivo','O período "' + g.period + '" não existe.', 'Vincule o formando a um período cadastrado.');
+        if (!Array.isArray(g.subjects))
+            validationError(local,'Disciplinas necessárias','A lista de disciplinas está inválida.', 'Selecione as disciplinas necessárias novamente.');
+        for (const subject of g.subjects) {
+            if (!has('subjects',subject))
+                validationError(local,'Disciplinas necessárias','Disciplina não cadastrada (ID ' + subject + ').', 'Remova a referência ou cadastre a disciplina.');
+        }
+        if (new Set(g.subjects).size !== g.subjects.length)
+            validationError(local,'Disciplinas necessárias','Uma disciplina foi selecionada mais de uma vez.', 'Deixe cada disciplina marcada apenas uma vez.');
+    }
     for (const p of d.plans) {
-        fail(d.periods.includes(p.period) && Array.isArray(p.lessons) && p.lessons.length <= 1500, 'Grade inválida');
-        const ids = new Set();
+        const local = 'Quadro de horários — ' + p.name;
+        if (!d.periods.includes(p.period))
+            validationError(local,'Período letivo','O período "' + p.period + '" não existe.', 'Selecione um período válido para a grade.');
+        if (!Array.isArray(p.lessons) || p.lessons.length > 1500)
+            validationError(local,'Aulas','A lista de aulas da grade está inválida.', 'Restaure um backup consistente.');
+        const ids = new Set<string>();
         for (const l of p.lessons) {
-            fail(l && typeof l.id === 'string' && /^[A-Za-z0-9_-]{1,120}$/.test(l.id) && !ids.has(l.id), 'Aula duplicada');
+            const offer = d.offers.find(o => o.id === l?.offer);
+            const row = local + ' — ' + (offer ? display('subjects',offer.subject) : 'oferta ID ' + String(l?.offer)) + ' · ' + (l ? lessonWhen(l.day,l.slot) : 'sem horário');
+            if (!l || typeof l.id !== 'string' || !/^[A-Za-z0-9_-]{1,120}$/.test(l.id))
+                validationError(row,'Identificador da aula','Aula inválida: identificador ausente ou incorreto.', 'Restaure um backup íntegro.');
+            if (ids.has(l.id))
+                validationError(row,'Identificador da aula','Aula duplicada (ID ' + l.id + ').', 'Remova a duplicação no arquivo de dados.');
             ids.add(l.id);
-            fail(d.offers.some(o => o.id === l.offer && o.period === p.period) && has('rooms', l.room) && Number.isInteger(l.day) && l.day >= 0 && l.day < 5 && Number.isInteger(l.slot) && l.slot >= 0 && Number.isInteger(l.length) && l.length >= 1 && l.length <= 2 && l.slot + l.length <= 6 && typeof l.locked === 'boolean', 'Aula inválida');
+            if (!offer || offer.period !== p.period)
+                validationError(row,'Oferta','A aula referencia uma oferta ausente ou de outro período.', 'Verifique a oferta e o período da grade.');
+            if (!has('rooms',l.room))
+                validationError(row,'Sala','A sala "' + l.room + '" não existe.', 'Selecione uma sala cadastrada para a aula.');
+            if (!Number.isInteger(l.day) || l.day < 0 || l.day >= 5)
+                validationError(row,'Dia','Dia da semana inválido (' + l.day + ').', 'Selecione um dia entre segunda e sexta.');
+            if (!Number.isInteger(l.slot) || l.slot < 0 || l.slot >= 6)
+                validationError(row,'Horário','Índice de horário inválido (' + l.slot + ').', 'Use um dos seis horários válidos da grade.');
+            if (!Number.isInteger(l.length) || l.length < 1 || l.length > 2 || l.slot + l.length > 6)
+                validationError(row,'Duração','Aula inválida: duração ou posicionamento fora dos seis horários.', 'Use uma aula simples ou dupla dentro do mesmo dia.');
+            if (typeof l.locked !== 'boolean')
+                validationError(row,'Bloco fixo','O estado de travamento está inválido.', 'Restaure uma grade válida ou recrie a aula.');
         }
     }
 }
