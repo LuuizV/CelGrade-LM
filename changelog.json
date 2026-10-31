@@ -1,5 +1,17 @@
 [
   {
+    "version": "0.8.5",
+    "date": "2026-10-31",
+    "title": "Mensagens claras sobre conflitos e pendências",
+    "changes": {
+      "Melhorias": [
+        "Pendências dos formandos citam pelo nome as disciplinas que se sobrepõem na grade.",
+        "Mensagens mais curtas e naturais, sem horários detalhados, termos internos ou instruções de correção.",
+        "Avisos de conflitos de professores, salas, turmas e cargas semanais escritos em linguagem simples."
+      ]
+    }
+  },
+  {
     "version": "0.8.4",
     "date": "2026-10-31",
     "title": "Validação precisa dos dados acadêmicos",
