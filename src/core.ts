@@ -21,7 +21,7 @@ export function normalizeRooms(d: DB): DB {
     for (const room of d.rooms || []) {
         const parts = roomFields(room);
         room.name = parts.name;
-        room.module = parts.module;
+        if (parts.module || room.module !== undefined) room.module = parts.module;
     }
     return d;
 }
