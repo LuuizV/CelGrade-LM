@@ -29,7 +29,8 @@ const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySele
 const $$ = (s: string) => Array.from(document.querySelectorAll<HTMLElement>(s));
 const esc = (x: unknown) => String(x ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 let db: DB, period = '', page = 'schedule', planId = '', busy = false, dragId = '', editing: string | null = null;
-let undo: Plan[] = [];
+let undo: {plan: Plan; cohort: string}[] = [];
+let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 let selectedView = 'cohort', saving = false;
 let renamingPlan: string | null = null;
 const dropCache = new Map<HTMLElement, ReturnType<typeof Core.move>>();
@@ -69,7 +70,12 @@ function metricCard(kind: string, icon: string, value: number | string, label: s
         '</strong><span class="metric-label">' + esc(label) + '</span></div></div>';
 }
 const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
-function notice(s: string, bad = false) { $('#notice').textContent = s; $('#notice').className = 'visible' + (bad ? ' bad' : ''); }
+function notice(s: string, bad = false) {
+    if (noticeTimer) clearTimeout(noticeTimer);
+    const el = $('#notice');
+    el.textContent = s; el.className = 'visible' + (bad ? ' bad' : '');
+    noticeTimer = setTimeout(() => { el.classList.remove('visible'); noticeTimer = null; }, bad ? 10000 : 4000);
+}
 function explainError(error: unknown, _location: string): string {
     const raw = error instanceof Error ? error.message : String(error);
     return raw.replace(/^Error:\s*/, '').replace(/^Local: [^\n]*\nCampo: [^\n]*\nProblema: /, '')
@@ -79,6 +85,25 @@ function describeMovement(issues: string[], _location: string) {
     return issues.length ? issues.join('\n') : 'Movimento permitido';
 }
 function plan() { return db.plans.find(p => p.id === planId && p.period === period); }
+function planStatus(p: Plan): 'green'|'yellow'|'red' {
+    if (Core.hardIssues(db,p.lessons).length || Core.completeness(db,p).length) return 'red';
+    if (Core.graduateReport(db,p).some(r=>!r.ok || r.limited)) return 'yellow';
+    return 'green';
+}
+function updatePlanSelect() {
+    const p=plan(), sel=$<HTMLSelectElement>('#plans');
+    sel.dataset.status = p ? planStatus(p) : '';
+    $('#rename-plan').toggleAttribute('disabled',!p);
+    $('#delete-plan').toggleAttribute('disabled',!p);
+}
+function hasCohortUndo(cohort: string) {return undo.some(x=>x.plan.id===planId && x.cohort===cohort);}
+async function deletePlan() {
+    const p=plan(); if (!p || busy || saving) return;
+    if (!confirm('Excluir a alternativa "' + p.name + '"? As demais serão preservadas.')) return;
+    const n=structuredClone(db); n.plans=n.plans.filter(x=>x.id!==p.id);
+    try {await save(n,'Antes de excluir alternativa');planId='';undo=[];render();notice('Alternativa excluída.');}
+    catch(e){notice(explainError(e,'Excluir alternativa'),true);}
+}
 function name(kind: 'rooms' | 'teachers' | 'subjects' | 'cohorts', id: string) { return db[kind].find(x => x.id === id)?.name || 'Não encontrado'; }
 async function save(next: DB, reason = 'Alteração de ' + (labels[page] || page)) {
     if (saving)
@@ -131,13 +156,14 @@ function renderSchedule() {
     if (!plan())
         planId = plans.at(-1)?.id || '';
     const p = plan();
-    $('#content').innerHTML = `<div class="panel no-print schedule-tools"><div class="actions"><div class="command-group"><small>GERAÇÃO</small><div class="actions">${button('generate', '✦ Gerar outra alternativa', 'primary')}<select id="plans"><option value="">Selecione uma grade</option>${options(plans, planId)}</select>${button('cancel-generation', 'Cancelar busca')}</div></div><div class="command-group"><small>EDIÇÃO</small><div class="actions">${button('undo', 'Desfazer movimento')}${button('rename-plan', 'Renomear')}</div></div><div class="command-group"><small>EXPORTAÇÃO E VISUALIZAÇÃO</small><div class="actions">${button('pdf', 'Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div></div></div><p class="muted">As grades anteriores são preservadas. O cadeado fixa uma aula na próxima geração. Arraste uma aula ou clique nela e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Duplas se movem juntas. Clique com o botão direito na aula para alterar sua sala.</p>${!db.offers.length ? button('demo', 'Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
+    $('#content').innerHTML = `<div class="panel no-print schedule-tools"><div class="actions"><div class="command-group"><small>GERAÇÃO</small><div class="actions">${button('generate','✦ Gerar outra alternativa','primary')}<select id="plans" aria-label="Selecionar alternativa" class="plan-select"><option value="">Selecione uma grade</option>${plans.map(x=>`<option value="${esc(x.id)}" ${x.id===planId?'selected':''}>${planStatus(x)==='green'?'🟢':planStatus(x)==='yellow'?'🟡':'🔴'} ${esc(x.name)}</option>`).join('')}</select>${button('rename-plan','Renomear')}${button('cancel-generation','Cancelar busca')}</div></div><div class="command-group"><small>ALTERNATIVAS</small><div class="actions">${button('delete-plan','Excluir alternativa','delete-action')}</div></div><div class="command-group"><small>EXPORTAÇÃO E VISUALIZAÇÃO</small><div class="actions">${button('pdf','Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div></div></div><p class="muted">As alternativas anteriores são preservadas. O cadeado fixa uma aula. Arraste ou clique na aula e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Botão direito altera a sala.</p>${!db.offers.length ? button('demo','Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
     $('#generate').onclick = generate;
     $('#cancel-generation').hidden = true;
     $<HTMLSelectElement>('#view').value = selectedView;
     $('#rename-plan').onclick = renamePlan;
     $('#plans').onchange = e => { planId = (e.target as HTMLSelectElement).value; undo = []; render(); };
-    $('#undo').onclick = undoMove;
+    $('#delete-plan').onclick = deletePlan;
+    updatePlanSelect();
     $('#pdf').onclick = pdf;
     $('#view').onchange = () => { selectedView = $<HTMLSelectElement>('#view').value; clearDrag(); renderTables(); };
     if ($('#demo'))
@@ -169,8 +195,9 @@ function renderTables() {
         groups = db.teachers.filter(t => p.lessons.some(l => db.offers.find(o => o.id === l.offer)?.teacher === t.id)).map(t => ({ id: t.id, title: t.name, lessons: p.lessons.filter(l => db.offers.find(o => o.id === l.offer)?.teacher === t.id) }));
     if (mode === 'graduate')
         groups = Core.graduateReport(db, p).map(g => ({ id: g.id, title: g.name + (g.ok ? '' : ' · atendimento parcial'), lessons: p.lessons.filter(l => g.offers.includes(l.offer)) }));
-    $('#tables').innerHTML = groups.map(g => `<article class="panel"><h2>${esc(g.title)} <span class="tag">${period}</span></h2><p class="muted">CelGrade LM · ${esc(p.name)}</p>${mode === 'graduate' ? graduateNote(g.id, p) : ''}<div class="print-warning">${[...Core.hardIssues(db, p.lessons), ...Core.completeness(db, p)].length ? 'RASCUNHO — esta grade contém conflitos ou cargas incompletas.' : ''}</div><div class="scroll"><table class="grid"><thead><tr><th>Horário</th>${days.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${Core.times.map((t, slot) => `${slot === 2 ? '<tr class="break"><td colspan="6">09:10–09:20 · INTERVALO</td></tr>' : ''}<tr><td class="time">${t}</td>${days.map((_, day) => { const ls = g.lessons.filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length); return `<td data-cohort="${mode === 'cohort' ? esc(g.id) : ''}" data-day="${day}" data-slot="${slot}">${ls.map(l => { const o = db.offers.find(o => o.id === l.offer)!; return `<div class="lesson subject-${subjectTone(o.subject)} ${l.locked ? 'locked' : ''}" tabindex="0" role="button" aria-label="Selecionar aula; botão direito ou Shift+F10 para alterar sala" draggable="${mode === 'cohort' && !l.locked}" data-lesson="${l.id}">${slot === l.slot ? `<button data-lock="${l.id}" title="Fixar ou destravar aula">${navIcons[l.locked ? 'lock' : 'unlock']}</button>` : ''}<b>${esc(name('subjects', o.subject))}</b><small>${esc(name('teachers', o.teacher))}<br>${esc(name('rooms', l.room))} · ${l.length === 2 ? 'dupla' : 'aula'}</small></div>`; }).join('') || '<div class="free">—</div>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div></article>`).join('') || '<div class="panel">Nenhum registro para esta visualização.</div>';
-    $$('[data-lesson]').forEach(el => {
+    $('#tables').innerHTML = groups.map(g => `<article class="panel"><div class="group-heading"><h2>${esc(g.title)} <span class="tag">${period}</span></h2>${mode==='cohort'?`<div class="cohort-actions"><button type="button" data-undo-cohort="${esc(g.id)}" ${hasCohortUndo(g.id)?'':'disabled'}>${navIcons.undo}Desfazer movimento</button><label class="afternoon-switch"><input type="checkbox" disabled> Habilitar aulas à tarde</label><button type="button" disabled>${navIcons.add}Adicionar aula à tarde</button></div>`:''}</div>${mode==='cohort'?'<p class="afternoon-note">Aulas à tarde: em breve — aguardando definição dos horários.</p>':''}${mode === 'graduate' ? graduateNote(g.id, p) : ''}<div class="print-warning">${[...Core.hardIssues(db, p.lessons), ...Core.completeness(db, p)].length ? 'RASCUNHO — esta grade contém conflitos ou cargas incompletas.' : ''}</div><div class="scroll"><table class="grid"><thead><tr><th>Horário</th>${days.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${Core.times.map((t, slot) => `${slot === 2 ? '<tr class="break"><td colspan="6">09:10–09:20 · INTERVALO</td></tr>' : ''}<tr><td class="time">${t}</td>${days.map((_, day) => { const ls = g.lessons.filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length); return `<td data-cohort="${mode === 'cohort' ? esc(g.id) : ''}" data-day="${day}" data-slot="${slot}">${ls.map(l => { const o = db.offers.find(o => o.id === l.offer)!; return `<div class="lesson subject-${subjectTone(o.subject)} ${l.locked ? 'locked' : ''}" tabindex="0" role="button" aria-label="Selecionar aula; botão direito ou Shift+F10 para alterar sala" draggable="${mode === 'cohort' && !l.locked}" data-lesson="${l.id}">${slot === l.slot ? `<button data-lock="${l.id}" title="Fixar ou destravar aula">${navIcons[l.locked ? 'lock' : 'unlock']}</button>` : ''}<b>${esc(name('subjects', o.subject))}</b><small>${esc(name('teachers', o.teacher))}<br>${esc(name('rooms', l.room))}</small></div>`; }).join('') || '<div class="free">—</div>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div></article>`).join('') || '<div class="panel">Nenhum registro para esta visualização.</div>';
+    $('[data-undo-cohort]').forEach(b => b.onclick = () => undoMove(b.dataset.undoCohort!));
+    $('[data-lesson]').forEach(el => {
         el.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); openRoomEditor(el.dataset.lesson!); };
         el.addEventListener('keydown', e => { if (e.target === el && (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10'))) { e.preventDefault(); e.stopPropagation(); openRoomEditor(el.dataset.lesson!); } });
     });
@@ -259,7 +286,8 @@ async function applyDrop(cell: HTMLElement) {
     n.plans = n.plans.map(x => x.id === planId ? r.plan : x);
     try {
         await save(n, r.yellow.length ? 'Antes de movimento com exceção' : 'Antes de mover aula');
-        undo.push(previous);
+        const changed = r.plan.lessons.find(l=>{const old=previous.lessons.find(x=>x.id===l.id);return old&&(l.day!==old.day||l.slot!==old.slot||l.room!==old.room);});
+        undo.push({plan:previous,cohort:db.offers.find(o=>o.id===changed?.offer)?.cohort||''});
         if (undo.length > 30)
             undo.shift();
         render();
@@ -271,10 +299,20 @@ async function applyDrop(cell: HTMLElement) {
 }
 async function renamePlan() { const p = plan(); if (!p)
     return; renamingPlan = p.id; $('#edit-title').textContent = 'Renomear alternativa'; $('#error').textContent = ''; $('#fields').innerHTML = `<label>Nome da alternativa<input name="name" required maxlength="200" value="${esc(p.name)}"></label>`; $<HTMLDialogElement>('#editor').showModal(); }
-async function undoMove() { if (!undo.length) {
-    notice('Não há movimento para desfazer.');
-    return;
-} const previous = undo.at(-1)!; const n = structuredClone(db); n.plans = n.plans.map(p => p.id === previous.id ? previous : p); await save(n, 'Antes de desfazer movimento'); undo.pop(); render(); }
+async function undoMove(cohort: string) {
+    const index=undo.findLastIndex(x=>x.cohort===cohort&&x.plan.id===planId);
+    if(index<0){notice('Não há movimento dessa turma para desfazer.');return;}
+    const n=structuredClone(db), current=n.plans.find(p=>p.id===planId);
+    if(!current)return;
+    const ids=new Set(n.offers.filter(o=>o.cohort===cohort).map(o=>o.id));
+    const previous=undo[index].plan;
+    current.lessons=current.lessons.filter(l=>!ids.has(l.offer)).concat(previous.lessons.filter(l=>ids.has(l.offer)));
+    if(Core.hardIssues(n,current.lessons).length>Core.hardIssues(db,plan()!.lessons).length){
+       notice('Desfazer criaria novos conflitos na grade.',true);return;
+    }
+    try{await save(n,'Antes de desfazer movimento da turma');undo.splice(index);render();notice('Movimento desfeito.');}
+    catch(e){notice(explainError(e,'Desfazer movimento'),true);}
+}
 async function pdf() { if (!plan()) {
     notice('Selecione uma grade primeiro.');
     return;
@@ -431,7 +469,7 @@ function renderPeriods() { $('#content').innerHTML = `<div class="panel"><h2>Per
 catch (e) {
     notice(String(e), true);
 } }; }
-function renderBackup() { $('#content').innerHTML = `<div class="panel"><h2>Seus dados, no seu computador</h2><p>${window.desktop ? 'Banco SQLite salvo na pasta de dados do CelGrade LM.' : 'Modo navegador: dados no armazenamento local deste navegador.'}</p><p class="muted">O backup inclui cadastros, formandos, períodos, alternativas e aulas fixas. PDF é para consulta; JSON permite restaurar o trabalho.</p><div class="actions">${button('export', 'Exportar backup JSON')}${button('import', 'Restaurar backup')}${button('delete-plan', 'Excluir alternativa selecionada')}${button('recovery', 'Histórico de recuperação')}</div><input type="file" id="file" accept=".json" hidden><div id="recovery-list"></div></div>`; $('#recovery').onclick = showRecovery; $('#export').onclick = () => { if (window.desktop)
+function renderBackup() { $('#content').innerHTML = `<div class="panel"><h2>Seus dados, no seu computador</h2><p>${window.desktop ? 'Banco SQLite salvo na pasta de dados do CelGrade LM.' : 'Modo navegador: dados no armazenamento local deste navegador.'}</p><p class="muted">O backup inclui cadastros, formandos, períodos, alternativas e aulas fixas. PDF é para consulta; JSON permite restaurar o trabalho.</p><div class="actions">${button('export', 'Exportar backup JSON')}${button('import', 'Restaurar backup')}${button('recovery', 'Histórico de recuperação')}</div><input type="file" id="file" accept=".json" hidden><div id="recovery-list"></div></div>`; $('#recovery').onclick = showRecovery; $('#export').onclick = () => { if (window.desktop)
     window.desktop.export().catch(e => notice(String(e), true));
 else
     download(JSON.stringify(db, null, 2), 'CelGrade-LM-backup.json'); }; async function restore(n: DB | null) { if (!n)
@@ -454,11 +492,7 @@ catch (e) {
 }
 catch (e) {
     notice(String(e), true);
-} }; $('#delete-plan').onclick = async () => { if (!planId) {
-    notice('Selecione uma alternativa no quadro primeiro.');
-    return;
-} if (!confirm('Excluir a alternativa selecionada?'))
-    return; const n = structuredClone(db); n.plans = n.plans.filter(p => p.id !== planId); await save(n); planId = ''; notice('Alternativa excluída.'); }; }
+} }; }
 async function showRecovery() {
     if (!window.desktop) {
         notice('Histórico automático disponível no aplicativo desktop.');
@@ -568,7 +602,7 @@ function openRoomEditor(id: string) {
         if (Core.signature(previous) === Core.signature(result.plan)) { dialog.close(); return; }
         committing = true; cancel.disabled = true; submit.disabled = true; select.disabled = true;
         const n = structuredClone(db); n.plans = n.plans.map(p => p.id === selectedPlan ? result.plan : p);
-        try { await save(n,'Antes de alterar sala'); undo.push(previous); if(undo.length>30)undo.shift(); dialog.close(); render(); notice('Sala alterada. O horário e a turma foram mantidos.'); }
+        try { await save(n,'Antes de alterar sala'); undo.push({plan:previous,cohort:db.offers.find(o=>o.id===lesson.offer)?.cohort||''}); if(undo.length>30)undo.shift(); dialog.close(); render(); notice('Sala alterada. O horário e a turma foram mantidos.'); }
         catch (error) { status.textContent = explainError(error, 'Quadro de horários — alteração da sala'); status.className='bad'; committing=false; cancel.disabled=false; submit.disabled=false; select.disabled=false; }
     };
     preview(); dialog.showModal(); select.focus();
