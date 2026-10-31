@@ -508,3 +508,14 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
 }
 @media screen and (max-width:950px){.schedule-status-bar{align-items:flex-start}.schedule-status-values{width:100%}.status-gaps-menu{left:0;right:auto;width:min(380px,calc(100vw - 230px))}}
 @media print{#schedule-status,#schedule-diagnostics{display:none!important}}
+
+/* 0.9.7 — arte Jasmim original, aprovada, sem redesenho da marca. */
+@media screen{
+ .brand .brand-lockup{display:block;object-fit:contain;width:100%;max-width:218px;height:auto}
+ .window-title .jasmine-top-mark{
+   display:inline-block;flex:none;width:28px;height:28px;border:0;border-radius:0;
+   background-image:url('brand-original.png');background-size:auto 28px;
+   background-repeat:no-repeat;background-position:left center;
+   filter:drop-shadow(0 1px 1px #0002);
+ }
+}
