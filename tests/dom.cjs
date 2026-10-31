@@ -85,7 +85,7 @@ test('0.9.0: controles, tarde desabilitada e visual de impressão',async()=>{
   assert.equal($('#delete-plan').closest('.command-group').querySelector('small').textContent,'ALTERNATIVAS');
   assert.equal(w.document.querySelectorAll('.afternoon-switch input:disabled').length,2);
   assert.equal(w.document.querySelectorAll('.cohort-actions button:disabled').length,4);
-  assert($('#print-header').textContent.includes('Quadro de horários'));
+  assert($('#print-document').textContent.includes('Quadro de horários'));
   assert.equal($('#tables').textContent.includes('CelGrade LM · Grade'),false);
   assert.equal($('#tables').textContent.includes(' · dupla'),false);
   assert.equal(store.read().plans.length,1);
