@@ -92,7 +92,7 @@ test('0.9.0: controles, tarde desabilitada e visual de impressão',async()=>{
  }finally{await a.close();}
 });
 test('0.9.0: exclusão pede confirmação e preserva cadastros',async()=>{
- const a=await app();try{const {$,store}=a;
+ const a=await app();try{const {$,store,w}=a;
   a.setDecision(false);$('#delete-plan').click();await tick();w.document.querySelector('.cel-confirm [data-choice="cancel"]').click();await tick();assert.equal(store.read().plans.length,1);
   a.setDecision(true);$('#delete-plan').click();await tick();w.document.querySelector('.cel-confirm [data-choice="yes"]').click();await tick();
   assert.equal(store.read().plans.length,0);assert.equal(store.read().teachers.length,2);
