@@ -257,3 +257,47 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
 .update-progress-bar{height:10px;background:#dce8df;border-radius:10px;overflow:hidden;margin:16px 0 8px}
 .update-progress-bar>span{display:block;background:#17694e;height:100%;width:0;transition:width .2s ease}
 #update-progress-detail{text-align:right;color:#5b7767;font-size:11px}
+
+/* CelGrade LM 0.9.3: refinamentos e transições discretas */
+@media screen{
+ html,body{height:100%;overflow:hidden}
+ body{padding-top:38px;overflow:hidden}
+ main{height:calc(100vh - 38px);overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable}
+ aside{bottom:0;max-height:calc(100vh - 38px)}
+ #notice{position:fixed;top:55px;right:25px;left:auto;width:min(470px,calc(100vw - 45px));z-index:18000;margin:0;box-shadow:0 12px 32px #183e3930;animation:toast-in .2s ease both}
+ #notice.visible{display:block}#notice:not(.visible){display:none!important}
+ .schedule-tools>.actions{align-items:end;gap:12px}
+ .schedule-tools .command-group{align-self:stretch}
+ .schedule-tools .command-group>.actions{align-items:center;gap:8px}
+ .schedule-tools .command-group button,.schedule-tools .command-group select,.delete-pair button{height:39px;min-height:39px;box-sizing:border-box;margin:0}
+ .schedule-tools .delete-pair{height:39px}
+ .record-table-scroll{overflow-x:auto}
+ .record-chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+ .record-chip{display:inline-flex;padding:4px 9px;border:1px solid #dae6dd;border-radius:6px;background:#f1f6f2;color:#375c49;font-size:11px;line-height:1.45}
+ .record-chip.chip-ok{background:#e3f2e8;border-color:#c6e4ce;color:#17694e}
+ .record-chip.chip-muted{background:#f2f2ef;color:#68716a}
+ .records-panel td{vertical-align:middle}
+ .records-panel .record-actions{white-space:nowrap}
+ .page-enter{animation:page-enter .18s ease-out both}
+ .page-enter .records-panel tbody,.page-enter .panel{animation:table-enter .15s ease-out both}
+ #editor[open],#release-history[open],.cel-confirm[open]{animation:modal-enter .16s ease-out both}
+ button{transition:background-color .12s ease,border-color .12s ease,color .12s ease}
+ .update-card-top .update-actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 0 auto;justify-content:flex-end}
+ .update-card-top .update-actions button{min-height:38px}
+ #update-check{background:#e1f0e7;color:#145e46;border-color:#badac7;font-weight:600}
+ #update-check:hover{background:#cae6d4}
+ #update-check::before{content:'↻';font-size:16px;margin-right:7px}
+ #update-check:disabled::before{display:inline-block;animation:spin .9s linear infinite}
+ .release-category{background:#fbfdfb;border:1px solid #dfe9e1;border-radius:9px;padding:13px 17px;margin:12px 0}
+ .release-category h3{margin:0 0 8px!important;color:#205c43;font-size:14px}
+ .release-category ul{margin:0;padding-left:19px}
+ .release-category li{margin-bottom:5px;line-height:1.5}
+ .release-entry{padding:14px 0}
+}
+@keyframes toast-in{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+@keyframes page-enter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes table-enter{from{opacity:0}to{opacity:1}}
+@keyframes modal-enter{from{opacity:0;transform:scale(.987)}to{opacity:1;transform:scale(1)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:900px){.update-card-top{flex-wrap:wrap}.update-card-top .update-actions{margin-left:56px}}
+@media(prefers-reduced-motion:reduce){.page-enter,.page-enter .records-panel tbody,.page-enter .panel,#notice,#editor[open],#release-history[open],.cel-confirm[open],#update-check:disabled::before{animation:none!important}button{transition:none!important}}

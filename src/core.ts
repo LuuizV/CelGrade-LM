@@ -324,9 +324,33 @@ export function graduateReport(d: DB, p: Plan) {
     });
 }
 export function graduateChanges(d: DB, before: Plan, after: Plan): string[] {
-    const old = new Map(graduateReport(d, before).map(r => [r.id, r]));
-    return graduateReport(d, after).filter(r => { const b = old.get(r.id)!; return !r.ok && (r.limited || r.offers.length < b.offers.length || r.missingIds.some(id => !b.missingIds.includes(id))); }).map(r => r.name + ': ' + r.reasons.join('; '));
+    const old = new Map(graduateReport(d,before).map(r=>[r.id,r]));
+    return graduateReport(d,after).filter(r=>{
+        const previous=old.get(r.id)!;
+        return !r.ok&&(r.limited||r.offers.length<previous.offers.length||r.missingIds.some(id=>!previous.missingIds.includes(id)));
+    }).map(r=>{
+        const selected=d.offers.filter(o=>r.offers.includes(o.id));
+        const reasons=r.missingIds.map(subject=>{
+            const title=d.subjects.find(s=>s.id===subject)?.name||subject;
+            const available=d.offers.filter(o=>o.period===after.period&&o.subject===subject);
+            const found=new Set<string>();
+            for(const offer of available){
+                const target=after.lessons.filter(l=>l.offer===offer.id);
+                if(target.reduce((n,l)=>n+l.length,0)!==offer.load)continue;
+                for(const selectedOffer of selected)for(const a of target)for(const b of after.lessons.filter(l=>l.offer===selectedOffer.id)){
+                    if(a.day!==b.day||a.slot>=b.slot+b.length||b.slot>=a.slot+a.length)continue;
+                    const cohort=d.cohorts.find(c=>c.id===selectedOffer.cohort);
+                    found.add((d.subjects.find(s=>s.id===selectedOffer.subject)?.name||selectedOffer.subject)+(cohort?' ('+cohort.stage+'º semestre)':''));
+                }
+            }
+            const semesters=[...new Set(available.map(o=>d.cohorts.find(c=>c.id===o.cohort)?.stage).filter((s):s is number=>s!==undefined))];
+            const origin=title+(semesters.length?' ('+semesters.map(s=>s+'º semestre').join(', ')+')':'');
+            return found.size?origin+': coincide com as aulas de '+[...found].join(', ')+'.':origin+': '+(r.reasons.find(x=>x.startsWith(title+':'))?.slice(title.length+2)||'há uma pendência.');
+        });
+        return r.name+': '+reasons.join('; ');
+    });
 }
+
 export function quality(d: DB, p: Plan) {
     const reports = graduateReport(d, p);
     let roomChanges = 0, gaps = 0;

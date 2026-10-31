@@ -182,6 +182,7 @@ function render() {
         renderPeriods();
     else
         renderList();
+    const content=$('#content');content.classList.remove('page-enter');void content.offsetWidth;content.classList.add('page-enter');
 }
 function renderSchedule() {
     const plans = db.plans.filter(p => p.period === period);
@@ -352,7 +353,7 @@ async function applyDrop(cell: HTMLElement) {
         notice('Movimento bloqueado.\n' + describeMovement(r.red, 'Quadro de horários — movimentação de aula'), true);
         return;
     }
-    if (r.yellow.length && !await confirmInApp('Confirmar exceção de horário', r.yellow.join('\n'), 'Permitir exceção'))
+    if (r.yellow.length && !await confirmInApp('Confirmar exceção de horário', r.yellow.join('\n'), 'Permitir choque de horários'))
         return;
     const previous = structuredClone(plan()!);
     if (Core.signature(previous) === Core.signature(r.plan))
@@ -443,11 +444,32 @@ async function generate() {
     worker.onerror = e => { finish(); notice('Falha no gerador: ' + e.message, true); };
     worker.postMessage({ db, period, base: plan(), seed: Date.now() });
 }
-function renderList() { const key = page as 'rooms' | 'teachers' | 'subjects' | 'cohorts' | 'offers' | 'graduates'; const rows = db[key].filter(x => !('period' in x) || x.period === period); $('#content').innerHTML = `<div class="panel records-panel"><div class="actions">${button('add', '+ Adicionar', 'primary')}<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><table><thead><tr><th>Registro</th>${page==='rooms'?'<th>Módulo</th>':''}<th>Detalhes</th><th>Ações</th></tr></thead><tbody>${rows.map(x => { let title = 'name' in x ? x.name : name('subjects', x.subject); let detail = ''; if ('available' in x)
-    detail = x.available.filter(Boolean).length + ' horários disponíveis'; if ('stage' in x)
-    detail = x.stage + 'º semestre · ' + (x.room ? name('rooms', x.room) : 'sala automática'); if ('load' in x)
-    detail = name('teachers', x.teacher) + ' · ' + name('cohorts', x.cohort) + ' · ' + x.load + ' aulas/semana'; if ('subjects' in x)
-    detail = (x.active ? 'Ativo · ' : 'Inativo · ') + x.subjects.map(id => name('subjects', id)).join(', '); return `<tr><td><span class="record-label">${navIcons[key] || ''}${esc(title)}</span></td>${page==='rooms'?'<td>'+esc((x as import('./core').Resource).module || '—')+'</td>':''}<td>${esc(detail)}</td><td><button class="edit-action" data-edit="${x.id}">${navIcons.edit}Editar</button> <button class="delete-action" data-delete="${x.id}">${navIcons.delete}Excluir</button></td></tr>`; }).join('')}</tbody></table>${rows.length ? '' : '<p class="muted">Nenhum cadastro ainda.</p>'}</div>`; $('#add').onclick = () => edit(null); $$('[data-edit]').forEach(b => b.onclick = () => edit(b.dataset.edit!)); $$('[data-delete]').forEach(b => b.onclick = () => remove(b.dataset.delete!)); }
+function renderList() {
+    const key=page as 'rooms'|'teachers'|'subjects'|'cohorts'|'offers'|'graduates';
+    const rows=db[key].filter(x=>!('period' in x)||x.period===period);
+    const graduate=key==='graduates';
+    const chips=(values:string[],tone='')=>'<div class="record-chips">'+values.map(v=>'<span class="record-chip '+tone+'">'+esc(v)+'</span>').join('')+'</div>';
+    const title=({rooms:'Sala',teachers:'Professor',subjects:'Disciplina',cohorts:'Turma',offers:'Disciplina',graduates:'Nome'} as Record<string,string>)[key];
+    const body=rows.map(x=>{
+        const label='name' in x?x.name:name('subjects',x.subject);
+        let details='',extra='';
+        if('available' in x){details=chips([x.available.filter(Boolean).length+' horários disponíveis']);if(key==='rooms')extra='<td>'+chips([(x as import('./core').Resource).module||'Sem módulo'])+'</td>';}
+        else if('stage' in x)details=chips([x.stage+'º semestre',x.room?name('rooms',x.room):'Sala automática']);
+        else if('load' in x)details=chips([name('teachers',x.teacher),name('cohorts',x.cohort),x.load+' aulas/semana']);
+        else if('subjects' in x){extra='<td>'+chips([x.active?'Ativo':'Inativo'],x.active?'chip-ok':'chip-muted')+'</td>';details=chips(x.subjects.map(id=>name('subjects',id)));}
+        return '<tr><td><span class="record-label">'+(navIcons[key]||'')+esc(label)+'</span></td>'+extra+
+        '<td>'+details+'</td><td class="record-actions"><button class="edit-action" data-edit="'+esc(x.id)+'">'+navIcons.edit+'Editar</button> <button class="delete-action" data-delete="'+esc(x.id)+'">'+navIcons.delete+'Excluir</button></td></tr>';
+    }).join('');
+    const extra=key==='rooms'?'<th>Módulo</th>':graduate?'<th>Situação</th>':'';
+    $('#content').innerHTML='<div class="panel records-panel"><div class="actions">'+button('add','+ Adicionar','primary')+
+    '<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><div class="record-table-scroll"><table><thead><tr><th>'+
+    title+'</th>'+extra+'<th>'+(graduate?'Disciplinas necessárias':'Detalhes')+'</th><th>Ações</th></tr></thead><tbody>'+body+
+    '</tbody></table></div>'+(rows.length?'':'<p class="muted">Nenhum cadastro ainda.</p>')+'</div>';
+    $('#add').onclick=()=>edit(null);
+    $$('[data-edit]').forEach(b=>b.onclick=()=>edit(b.dataset.edit!));
+    $$('[data-delete]').forEach(b=>b.onclick=()=>remove(b.dataset.delete!));
+}
+
 function edit(id: string | null) {
     renamingPlan = null;
     editing = id;
@@ -462,12 +484,11 @@ function edit(id: string | null) {
         id: string;
         name: string;
     }[], value: string) => `<label>${title}<select name="${n}" ${n === 'room' ? '' : 'required'}>${options(items, value)}</select></label>`;
-    if (page !== 'offers')
-        html += field('name', 'Nome', x.name || '');
+    if (page !== 'offers') html += field('name', 'Nome', x.name || '');
+    if (page === 'rooms') html += field('module', 'Módulo', x.module || '');
     if (page === 'rooms' || page === 'teachers') {
         html += '<p>Disponibilidade semanal — marque quando pode receber aulas</p><div class="actions"><button type="button" id="all">Marcar todos</button><button type="button" id="none">Desmarcar todos</button></div><table class="availability"><tr><th>Horário</th>' + days.map(d => '<th>' + d + '</th>').join('') + '</tr>' + Core.times.map((t, slot) => '<tr><th>' + t + '</th>' + days.map((d, day) => `<td><input type="checkbox" name="available" aria-label="${d} ${t}" value="${day * 6 + slot}" ${(x.available || Array(30).fill(1))[day * 6 + slot] ? 'checked' : ''}></td>`).join('') + '</tr>').join('') + '</table>';
-        if (page === 'rooms')
-            html += field('module','Módulo (opcional)',x.module || '').replace(' required ',' ') + `<label>Descrição<textarea name="description">${esc(x.description || '')}</textarea></label>`;
+
     }
     if (page === 'cohorts')
         html += field('stage', 'Semestre do curso', x.stage || 1, 'number') + select('room', 'Sala preferencial', [{ id: '', name: 'Automática' }, ...db.rooms], x.room || '');
@@ -507,7 +528,7 @@ $('#form').onsubmit = async (e) => { e.preventDefault(); if (renamingPlan) {
 } const f = new FormData(e.target as HTMLFormElement), n = structuredClone(db), rows = (n as any)[page] as any[], old = rows.find(x => x.id === editing); const x: any = { id: editing || Core.uid() }; if (page !== 'offers')
     x.name = String(f.get('name')).trim(); if (page === 'rooms' || page === 'teachers') {
     x.available = Array.from({ length: 30 }, (_, i) => f.getAll('available').includes(String(i)) ? 1 : 0);
-    if (page === 'rooms') { x.description = f.get('description'); x.module=String(f.get('module') || '').trim(); }
+    if (page === 'rooms') { x.module=String(f.get('module') || '').trim(); if (!x.module) { $('#error').textContent='Informe o módulo da sala.'; return; } }
 } if (page === 'cohorts') {
     x.stage = Number(f.get('stage'));
     x.room = f.get('room');
@@ -598,6 +619,7 @@ function initUpdateControls(dialog: HTMLDialogElement) {
        '<div id="update-progress-wrap" hidden><div class="update-progress-bar" role="progressbar" aria-label="Progresso do download" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="update-progress"></span></div><div id="update-progress-detail"></div></div>'+
        '<div class="update-actions"><button type="button" id="update-check">Verificar atualizações</button><button type="button" class="primary" id="update-download" hidden>Baixar atualização</button><button type="button" class="primary" id="update-install" hidden>Instalar e reiniciar</button><button type="button" id="update-later" hidden>Mais tarde</button></div>';
     dialog.querySelector('#release-intro')!.after(status);
+    status.querySelector<HTMLElement>('.update-card-top')!.append(status.querySelector<HTMLElement>('.update-actions')!);
     const heading=status.querySelector<HTMLElement>('#update-heading')!,message=status.querySelector<HTMLElement>('#update-message')!,
       check=status.querySelector<HTMLButtonElement>('#update-check')!,download=status.querySelector<HTMLButtonElement>('#update-download')!,
       install=status.querySelector<HTMLButtonElement>('#update-install')!,later=status.querySelector<HTMLButtonElement>('#update-later')!,
@@ -649,9 +671,10 @@ async function initReleaseHistory() {
         details.open = unread.some(u => u.version === r.version) || r.version === ReleaseHistory.version;
         const summary = document.createElement('summary'); summary.textContent = `${r.version} — ${r.title} · ${r.date.split('-').reverse().join('/')}${r.version === ReleaseHistory.version ? ' · Atual' : ''}`; details.append(summary);
         for (const [category, items] of Object.entries(r.changes)) {
+            const section=document.createElement('section');section.className='release-category';
             const h = document.createElement('h3'); h.textContent = category; const ul = document.createElement('ul');
             for (const text of items) { const li = document.createElement('li'); li.textContent = text; ul.append(li); }
-            details.append(h,ul);
+            section.append(h,ul);details.append(section);
         }
         list.append(details);
     }
