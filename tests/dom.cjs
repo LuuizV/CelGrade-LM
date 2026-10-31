@@ -182,10 +182,10 @@ test('0.9.2: salas mostram módulo em coluna separada',async()=>{
 test('0.9.4: painel dos formandos, graficos e janelas expansíveis',async()=>{
  const a=await app();try{const {w,$}=a;
   assert($('#graduate-dashboard-body'));
-  assert($('#chart-bar'));assert($('#chart-pie'));
+  assert.equal(w.document.querySelector('#chart-bar'),null);assert.equal(w.document.querySelector('#chart-pie'),null);
   assert($('#gap-details'));
-  $('#chart-pie').click();assert($('.demand-pie'));
-  $('#chart-bar').click();assert($('.demand-bars'));
+  assert($('.graduate-title-icon svg'));
+  assert.equal(w.document.querySelector('.demand-bars'),null);
   $('#toggle-graduate-dashboard').click();assert.equal($('#graduate-dashboard-body').hidden,true);
   $('#toggle-graduate-dashboard').click();assert.equal($('#graduate-dashboard-body').hidden,false);
  }finally{await a.close();}
@@ -199,5 +199,19 @@ test('0.9.4: cartões por formando, professor e oferta com busca',async()=>{
    query.dispatchEvent(new w.Event('input',{bubbles:true}));
    assert.equal(w.document.querySelectorAll('.record-card:not([hidden])').length,0);
   }
+ }finally{await a.close();}
+});
+
+test('0.9.5: sem graficos, com icone, notificacoes e titulo semantico',async()=>{
+ const a=await app();try{const {w,$}=a;
+  assert($('.graduate-title-icon svg'));assert.equal(w.document.querySelector('.demand-pie'),null);
+  assert.equal(w.document.querySelector('.chart-switch'),null);
+  assert($('#title').textContent==='Quadro de horários');
+  assert($('.window-motto').textContent.includes('Menos conflitos'));
+  assert($('.window-title .jasmine-mark'));assert($('#notice-close'));
+  $('.lesson[data-lesson="c"]').click();
+  assert($('#notice-text').textContent.includes('Aula selecionada'));
+  $('#notice-close').click();assert(!$('#notice').classList.contains('visible'));
+  $('[data-page="about"]').click();assert($('.about-dedication').textContent.includes('jasmim'));
  }finally{await a.close();}
 });

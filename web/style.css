@@ -374,3 +374,59 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
  .schedule-tools>.actions{flex-wrap:wrap}
  .record-card-pair{grid-template-columns:1fr}
 }
+
+/* 0.9.5 — Jasmim institucional. Mantém cores funcionais e PDF. */
+@media screen{
+ :root{--primary:#145C46;--gold:#B99A62;color:#283C37;background:#F6F7F5}
+ html,body{background:#F6F7F5}
+ .window-title{background:#145C46;gap:9px;font-size:12px}
+ .window-title strong{font-weight:650;color:#fff;white-space:nowrap}
+ .window-title strong span{color:#E6CD94}
+ .window-title .window-motto{font-size:11px;font-weight:400;color:#D0E5D9;border-left:1px solid #ffffff55;padding-left:12px;margin-left:5px;white-space:nowrap}
+ .jasmine-mark{width:22px;height:22px;object-fit:contain;flex:none;border-radius:5px}
+ aside{background:#fff;border-right:1px solid #E5E9E6}
+ .brand{display:flex;align-items:center;gap:7px;font-size:22px;color:#145C46}
+ .brand .jasmine-mark{width:28px;height:28px}
+ nav button{color:#405652}
+ nav .nav-icon{background:#F3F5F3;color:#60736B}
+ nav button:hover .nav-icon{background:#EDF2EF;color:#145C46}
+ nav .active{background:#E7F0E9;box-shadow:inset 3px 0 #145C46}
+ nav .active .nav-icon{background:#145C46;color:#fff}
+ main{padding-top:21px}
+ main>header{min-height:44px;margin-bottom:16px;display:flex;justify-content:flex-end;align-items:center}
+ main>header .sr-only{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important}
+ .panel,.record-card,.metric-card{background:#fff;border-color:#E1E7E3;box-shadow:0 2px 12px #263C3407}
+ .metrics-panel .metric-card{background:#fff}
+ .record-chip{background:#F3F5F3;border-color:#E0E5E1;color:#53645D}
+ .record-chip.chip-ok{background:#E8F3EA;color:#205A42;border-color:#CFE4D4}
+ .record-chip.chip-muted{background:#F2F3F2;border-color:#DFE3E0;color:#667069}
+ .edit-action{background:#FAFBFA;border-color:#DBE3DE;color:#36564B}
+ .edit-action:hover{background:#F0F4F1}
+ .schedule-tools>.muted{background:#F4F6F4;color:#5C6A62}
+ .records-panel tr:hover td{background:#F7F8F7}
+ .records-panel th{background:#F3F5F3;color:#465C51}
+ .summary.ok{background:#F4F7F4}
+ .about-hero{background:linear-gradient(135deg,#145C46,#356C5D)}
+ .about-section>h3{color:#365A4A}
+ .about-dedication{background:linear-gradient(145deg,#FFFCF5,#FAF8F1)}
+ .graduate-title-group{display:flex;align-items:center;gap:13px;min-width:0}
+ .graduate-title-group h2{margin:0 0 3px}
+ .graduate-title-icon{display:grid;place-items:center;width:43px;height:43px;flex:none;border-radius:11px;color:#236E52;background:#E7F3EA}
+ .graduate-title-icon svg{width:26px;height:26px}
+ .graduate-list{margin-top:5px!important}
+ #notice{left:calc(238px + (100vw - 238px)/2);right:auto;top:55px;width:min(510px,calc(100vw - 260px));min-height:68px;transform:translateX(-50%);align-items:center;gap:12px;padding:13px 15px;font-size:13px;line-height:1.45;background:#F0F8F2;color:#214A39;border:1px solid #C6DFC8;border-radius:12px;box-shadow:0 12px 36px #263C3426;animation:toast-jasmine-in .22s ease both}
+ #notice.bad{background:#FFF2EF;border-color:#E8BDB7;color:#903F35}
+ #notice .notice-symbol{width:29px;height:29px;border-radius:50%;background:#277B57;color:#fff;display:grid;place-items:center;flex:none}
+ #notice .notice-symbol::before{content:'✓';font-size:17px;font-weight:700}
+ #notice.bad .notice-symbol{background:#B54A43}
+ #notice.bad .notice-symbol::before{content:'!'}
+ #notice-text{flex:1;min-width:0;white-space:pre-line;overflow-wrap:anywhere}
+ #notice-close{flex:none;padding:3px;border:0;background:transparent;color:inherit;font-size:20px;line-height:1;min-width:28px;min-height:28px}
+ #notice-close:hover{background:#0000000B}
+ #notice.visible{display:flex!important}
+ #notice:not(.visible){display:none!important}
+}
+@keyframes toast-jasmine-in{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
+@media screen and (max-width:1000px){#notice{left:calc(200px + (100vw - 200px)/2);width:min(500px,calc(100vw - 220px))}}
+@media screen and (max-width:700px){#notice{left:calc(172px + (100vw - 172px)/2);width:calc(100vw - 192px)}.window-title .window-motto{display:none}.brand{font-size:18px}}
+@media(prefers-reduced-motion:reduce){#notice{animation:none!important}}
