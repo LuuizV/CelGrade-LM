@@ -430,3 +430,49 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
 @media screen and (max-width:1000px){#notice{left:calc(200px + (100vw - 200px)/2);width:min(500px,calc(100vw - 220px))}}
 @media screen and (max-width:700px){#notice{left:calc(172px + (100vw - 172px)/2);width:calc(100vw - 192px)}.window-title .window-motto{display:none}.brand{font-size:18px}}
 @media(prefers-reduced-motion:reduce){#notice{animation:none!important}}
+
+/* 0.9.6 — Identidade unificada, gerenciamento dos períodos e transições somente na navegação. */
+@media screen{
+ .window-title{gap:9px}
+ .window-title .window-motto{border:0;margin:0;padding:0;color:#e5f2e9;font-size:11px}
+ .brand{display:block;width:100%;height:auto;padding:0;margin:0}
+ .brand .brand-lockup{display:block;width:100%;max-width:205px;height:auto;object-fit:contain;object-position:left center}
+ main>header{height:0!important;min-height:0!important;margin:0!important;padding:0!important}
+ #period-anchor[hidden]{display:none!important}
+ .periods-page{width:100%;max-width:1100px;margin:0 auto}
+ .period-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+ .period-card{min-width:0;padding:23px;display:flex;flex-direction:column;gap:12px}
+ .period-card-heading{display:flex;gap:12px;align-items:center;margin-bottom:4px}
+ .period-card-heading h2{font-size:15px;margin:0;color:#244a39}
+ .period-card-heading .muted{margin:3px 0 0}
+ .period-card-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:10px;flex:none;background:#e8f2eb;color:#17694e}
+ .period-card-icon svg{width:21px;height:21px}
+ #period-mount select{margin:0;width:100%;min-height:42px;font-size:14px}
+ .period-current{font-size:12px;color:#527363;margin:0}
+ .period-current strong{color:#145c46}
+ .period-card>label{margin:0;font-size:12px;color:#566d60}
+ .period-card>#new-period{margin:0;min-height:42px}
+ .period-add-actions{display:flex;justify-content:flex-end;margin-top:auto}
+ .period-add-actions button{min-height:40px}
+ .period-list-heading{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}
+ .period-list-heading h2{font-size:16px;margin:0}
+ .period-list-heading>span{font-size:11px;color:#77877b}
+ .period-entry{display:flex;gap:13px;align-items:center;padding:15px 0;border-top:1px solid #e4ebe6}
+ .period-entry-icon{display:flex;align-items:center;justify-content:center;color:#5f786a;flex:none}
+ .period-entry-icon svg{width:21px;height:21px}
+ .period-entry-copy{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+ .period-entry-copy strong{color:#1d4c39;font-size:14px}
+ .period-entry-copy small{color:#7a8c80;font-size:11px}
+ .period-entry button{min-height:34px;padding:6px 13px}
+ .period-active-label{font-size:11px;font-weight:650;color:#1d724d;background:#e6f3e9;border-radius:100px;padding:6px 12px}
+ .period-note{margin-top:0}
+ .page-enter{animation:page-enter .28s cubic-bezier(.2,.75,.25,1) both}
+ .page-enter .records-panel tbody,.page-enter .panel{animation:none}
+ .about>*{animation:none}
+ .update-card-top .update-actions{align-items:center;gap:8px;row-gap:9px}
+ .update-card-top .update-actions button{height:40px!important;min-height:40px!important;box-sizing:border-box;font-size:12px!important;font-weight:600;padding:0 13px!important;line-height:1.2!important;border-radius:8px!important;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;margin:0!important}
+ .update-actions button[hidden]{display:none!important}
+}
+@keyframes page-enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@media screen and (max-width:850px){.period-cards{grid-template-columns:1fr}.period-card{padding:16px}}
+@media(prefers-reduced-motion:reduce){.page-enter,.about>*{animation:none!important}}
