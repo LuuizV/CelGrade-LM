@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.9.3",
+    "date": "2026-10-31",
+    "title": "Melhorias de usabilidade e organização",
+    "changes": {
+      "Cadastros": [
+        "Módulo obrigatório junto ao nome da sala; descrição removida do formulário.",
+        "Colunas específicas e etiquetas compactas nas listas de salas, professores, turmas, ofertas e formandos."
+      ],
+      "Horários": [
+        "Semestres informados nas confirmações de choque entre disciplinas.",
+        "Botão Permitir choque de horários e controles do quadro alinhados."
+      ],
+      "Interface": [
+        "Notificações flutuantes sem deslocar a tela e rolagem abaixo da barra superior.",
+        "Animações discretas em páginas, tabelas, botões e formulários.",
+        "Botão de atualização alinhado à direita no cartão.",
+        "Histórico de versões dividido em seções de leitura mais clara."
+      ]
+    }
+  },
+  {
     "version": "0.9.2",
     "date": "2026-10-31",
     "title": "Fluxos integrados e cadastros mais organizados",
