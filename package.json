@@ -1,7 +1,7 @@
 {
   "name": "celgrade-lm",
   "productName": "CelGrade LM",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "private": true,
   "main": "dist/main.js",
   "scripts": {
@@ -35,17 +35,23 @@
       "package.json"
     ],
     "asar": true,
+    "extraResources": [{"from": "build/icon.ico", "to": "icon.ico"}],
     "npmRebuild": false,
     "win": {
       "target": [
         "nsis"
       ],
       "artifactName": "CelGrade-LM-Setup-${version}.${ext}",
-      "signAndEditExecutable": false,
+      "signAndEditExecutable": true,
       "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false
