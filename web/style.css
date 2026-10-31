@@ -80,3 +80,11 @@ nav .active .nav-icon,nav .active:hover .nav-icon{background:#104d3b;color:#fff}
 body:has(#tip:not([hidden])) main{padding-bottom:110px}
 #notice,#error{white-space:pre-line;line-height:1.6}
 @media(prefers-reduced-motion:reduce){.lesson button[data-lock].lock-transition .lock-shackle{animation:none}}
+
+/* 0.8.5: título e aviso do arraste formam um único cartão, sem sobreposição. */
+.drag-preview{position:fixed;top:0;left:0;width:1px;height:1px;padding:0;margin:0;border:0;background:transparent;opacity:0;overflow:hidden;pointer-events:none;box-shadow:none}
+#tip{padding:0;max-width:min(350px,calc(100vw - 24px));width:max-content;overflow:hidden;border-radius:10px;box-shadow:0 8px 28px #112e2850;white-space:normal;pointer-events:none}
+#tip[hidden]{display:none!important}
+.drag-tip-title{display:block;padding:9px 12px;background:#edf7ef;color:#214c3d;font-size:12px;font-weight:650;line-height:1.4;overflow-wrap:anywhere;border-bottom:1px solid #c6dccd}
+.drag-tip-description{display:block;padding:10px 12px;background:#173f34;color:#fff;font-size:11px;line-height:1.5;white-space:pre-line;overflow-wrap:anywhere}
+@media print{#tip,.drag-preview{display:none!important}}
