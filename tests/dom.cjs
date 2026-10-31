@@ -98,3 +98,33 @@ test('0.9.0: exclusão pede confirmação e preserva cadastros',async()=>{
   assert.equal(store.read().plans.length,0);assert.equal(store.read().teachers.length,2);
  }finally{await a.close();}
 });
+
+test('0.9.0: PDF separado agrupa aulas duplas e exibe professores e salas',async()=>{
+ const a=await app();try{const {$,w}=a;
+  const doc=$('#print-document');
+  assert.match(doc.textContent,/Quadro de horários/);
+  assert.match(doc.textContent,/Período letivo 2027.1/);
+  assert.match(doc.textContent,/Ana Oliveira/);
+  assert.match(doc.textContent,/Sala 101/);
+  assert.equal(doc.textContent.includes(' · dupla'),false);
+  assert.equal(doc.querySelectorAll('.print-grid').length,2);
+  assert(doc.querySelector('.print-grid td[rowspan="2"]'),'Aulas de dois horários devem ocupar uma célula única');
+  assert.equal(doc.textContent.includes('CelGrade LM · Grade'),false);
+ }finally{await a.close();}
+});
+test('0.9.0: desfazer movimento em uma turma preserva outra',async()=>{
+ const a=await app();try{const {$,w,store}=a;
+  $('.lesson[data-lesson="c"]').click();
+  $('td[data-cohort="c2"][data-day="3"][data-slot="0"]').click();await tick();
+  assert.equal(store.read().plans[0].lessons.find(l=>l.id==='c').day,3);
+  $('.lesson[data-lesson="b"]').click();
+  $('td[data-cohort="c1"][data-day="4"][data-slot="0"]').click();await tick();
+  assert.equal(store.read().plans[0].lessons.find(l=>l.id==='b').day,4);
+  $('[data-undo-cohort="c2"]').click();await tick();
+  assert.equal(store.read().plans[0].lessons.find(l=>l.id==='c').day,1);
+  assert.equal(store.read().plans[0].lessons.find(l=>l.id==='b').day,4);
+  assert.equal($('[data-undo-cohort="c1"]').disabled,false);
+  $('[data-undo-cohort="c1"]').click();await tick();
+  assert.equal(store.read().plans[0].lessons.find(l=>l.id==='b').day,0);
+ }finally{await a.close();}
+});

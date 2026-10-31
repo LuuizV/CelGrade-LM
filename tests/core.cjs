@@ -3,7 +3,7 @@ test('generate exact workloads, valid resources and distinct schedules',()=>{con
 test('locked lessons preserved and periods isolated',()=>{const d=C.demo();d.periods.push('2027.2');const a=C.generate(d,'2027.1',undefined,7);a.lessons[0].locked=true;const b=C.generate(d,'2027.1',a,98);assert.deepEqual(b.lessons.find(l=>l.id===a.lessons[0].id),a.lessons[0]);assert.throws(()=>C.generate(d,'2027.2',undefined,2));});
 test('red blocked move does not mutate original',()=>{const d=C.demo(),p=C.generate(d,'2027.1',undefined,7);p.lessons[0].locked=true;const before=JSON.stringify(p);const r=C.move(d,p,p.lessons[0].id,0,0,'r1');assert(r.red.length);assert.equal(JSON.stringify(p),before);});
 test('yellow student conflict and alternate offering selection',()=>{const d=C.demo();d.offers.forEach(o=>o.load=2);let p={id:'p',name:'Test',period:'2027.1',created:'',lessons:[{id:'l1',offer:'o2',day:0,slot:0,length:2,room:'r1',locked:false},{id:'l2',offer:'o3',day:1,slot:0,length:2,room:'r2',locked:false}]};assert(C.graduateReport(d,p)[0].ok);const r=C.move(d,p,'l2',0,0,'r2');assert.equal(r.red.length,0);assert.equal(r.yellow.length,1);d.offers.push({...d.offers[1],id:'o4',cohort:'c2'});r.plan.lessons.push({id:'l3',offer:'o4',day:2,slot:0,length:2,room:'r1',locked:false});assert(C.graduateReport(d,r.plan)[0].ok);});
-test('both directions of swap checked',()=>{const d=C.demo();d.offers.forEach(o=>o.load=2);const p={id:'p',name:'Test',period:'2027.1',created:'',lessons:[{id:'a',offer:'o1',day:0,slot:0,length:2,room:'r1',locked:false},{id:'b',offer:'o2',day:1,slot:0,length:2,room:'r1',locked:false}]};d.teachers[1].available[0]=0;assert(C.move(d,p,'a',1,0,'r1').red.some(s=>s.includes('não está marcada como disponível')));});
+test('both directions of swap checked',()=>{const d=C.demo();d.offers.forEach(o=>o.load=2);const p={id:'p',name:'Test',period:'2027.1',created:'',lessons:[{id:'a',offer:'o1',day:0,slot:0,length:2,room:'r1',locked:false},{id:'b',offer:'o2',day:1,slot:0,length:2,room:'r1',locked:false}]};d.teachers[1].available[0]=0;assert(C.move(d,p,'a',1,0,'r1').red.some(s=>s.includes('não está marcado como disponível')));});
 test('invalid references and impossible availability',()=>{let d=C.demo();d.offers[0].teacher='missing';assert.throws(()=>C.validate(d));d=C.demo();d.teachers[0].available.fill(0);assert.throws(()=>C.generate(d,'2027.1',undefined,1));});
 test('SQLite persistence and backup round trip',()=>{const {DatabaseSync}=require('node:sqlite');const fs=require('node:fs'),os=require('node:os'),path=require('node:path');const dir=fs.mkdtempSync(path.join(os.tmpdir(),'celgrade-'));const file=path.join(dir,'test.sqlite');let sql=new DatabaseSync(file);sql.exec('CREATE TABLE state(data TEXT)');const d=C.demo();d.plans.push(C.generate(d,'2027.1',undefined,9));sql.prepare('INSERT INTO state VALUES(?)').run(JSON.stringify(d));sql.close();sql=new DatabaseSync(file);const result=JSON.parse(sql.prepare('SELECT data FROM state').get().data);C.validate(result);assert.deepEqual(result,d);sql.close();});
 
@@ -50,4 +50,19 @@ test('0.8.5: pendência mostra todas as disciplinas com choque real',()=>{
  ]};
  const report=C.graduateReport(d,p)[0];
  assert(report.reasons.some(x=>x.includes('Banco de Dados')&&x.includes('Algoritmos')&&x.includes('Cálculo I')));
+});
+
+test('0.9.0: nome da alternativa inclui periodo e horario sem segundos',()=>{
+  const d=C.demo(), p=C.generate(d,'2027.1',undefined,8);
+  assert.match(p.name,/^Alternativa 2027\.1 - \d{2}:\d{2}$/);
+  assert(!/\d{2}:\d{2}:\d{2}/.test(p.name));
+});
+test('0.9.0: avisos explicam causa da indisponibilidade ou ocupação',()=>{
+  const d=C.demo();d.offers.forEach(o=>o.load=2);
+  d.rooms[0].available[0]=0;
+  const a={id:'a',offer:'o1',day:0,slot:0,length:2,room:'r1',locked:false};
+  const b={id:'b',offer:'o2',day:0,slot:0,length:2,room:'r1',locked:false};
+  const issues=C.hardIssues(d,[a,b]);
+  assert(issues.some(s=>s.includes('não está marcada como disponível')&&s.includes('Algoritmos')));
+  assert(issues.some(s=>s.includes('já está ocupada por')&&s.includes('Algoritmos')&&s.includes('Cálculo I')));
 });

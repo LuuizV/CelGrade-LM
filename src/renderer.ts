@@ -177,6 +177,47 @@ function renderSchedule() {
     if (expand) expand.onclick = () => { const entries = $$('.graduate-list details') as HTMLDetailsElement[]; const open = entries.some(d => !d.open); entries.forEach(d => d.open = open); expand.textContent = open ? 'Recolher todos' : 'Expandir todos'; };
     renderTables();
 }
+// Documento independente da interface: grade limpa para PDF e impressão A4.
+function printDocument(groups: {id: string; title: string; lessons: Lesson[]}[], p: Plan, mode: string): string {
+    const lessonList = (lessons: Lesson[], day: number, slot: number) => lessons
+        .filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length)
+        .sort((a,b) => a.id.localeCompare(b.id));
+    const signature = (lessons: Lesson[]) => lessons.map(l=>l.id).join('|');
+    const issues = [...Core.hardIssues(db,p.lessons),...Core.completeness(db,p)];
+    const header = '<div class="print-document-header"><div class="print-kicker">PLANEJAMENTO ACADÊMICO</div>' +
+        '<h1>Quadro de horários</h1><p>Período letivo ' + esc(period) + ' <span>·</span> ' + esc(p.name) + '</p></div>';
+    const sheets = groups.map(g => {
+        const rows = Core.times.map((time,slot) => {
+            const cells = days.map((_,day) => {
+                const active = lessonList(g.lessons,day,slot);
+                const sig = signature(active);
+                if (sig && slot>0 && sig===signature(lessonList(g.lessons,day,slot-1))) return '';
+                let span=1;
+                if (sig) while(slot+span<Core.times.length && sig===signature(lessonList(g.lessons,day,slot+span))) span++;
+                const contents = active.length ? active.map(l => {
+                    const o=db.offers.find(x=>x.id===l.offer);
+                    if (!o) return '<div class="print-lesson">Aula sem disciplina cadastrada</div>';
+                    return '<div class="print-lesson subject-' + subjectTone(o.subject) + '">' +
+                        '<strong>' + esc(name('subjects',o.subject)) + '</strong>' +
+                        '<span>' + esc(name('teachers',o.teacher)) + '</span>' +
+                        '<span>' + esc(name('rooms',l.room)) + '</span></div>';
+                }).join('') : '<span class="print-empty">—</span>';
+                return '<td' + (span>1?' rowspan="'+span+'"':'') + '>' + contents + '</td>';
+            }).join('');
+            return '<tr><th scope="row">' + esc(time) + '</th>' + cells + '</tr>';
+        }).join('');
+        const status = mode==='graduate' ? Core.graduateReport(db,p).find(r=>r.id===g.id) : null;
+        const note = status && !status.ok ? '<p class="print-group-alert">Atendimento parcial: ' + esc(status.reasons.join('; ')) + '</p>' : '';
+        return '<section class="print-sheet"><div class="print-group-heading"><h2>' + esc(g.title) +
+            '</h2><span>' + esc(period) + '</span></div>' + note +
+            '<table class="print-grid"><thead><tr><th scope="col">Horário</th>' +
+            days.map(d=>'<th scope="col">'+esc(d)+'</th>').join('') +
+            '</tr></thead><tbody>' + rows + '</tbody></table></section>';
+    }).join('');
+    return '<div id="print-document" aria-hidden="true">' + header +
+        (issues.length ? '<p class="print-draft">RASCUNHO — a alternativa apresenta pendências.</p>' : '') +
+        (sheets || '<p>Nenhuma turma ou aula disponível nesta visualização.</p>') + '</div>';
+}
 function renderTables() {
     const p = plan();
     if (!p) {
@@ -198,7 +239,7 @@ function renderTables() {
     const printHeader = '<div id="print-header"><div class="print-eyebrow">PLANEJAMENTO ACADÊMICO</div><h1>Quadro de horários</h1><p>Período letivo ' + esc(period) + ' · ' + esc(p.name) + '</p></div>';
     $('#tables').classList.add('schedule-tables');
     $('#tables').innerHTML = groups.map(g => `<article class="panel"><div class="group-heading"><h2>${esc(g.title)} <span class="tag">${period}</span></h2>${mode==='cohort'?`<div class="cohort-actions"><button type="button" data-undo-cohort="${esc(g.id)}" ${hasCohortUndo(g.id)?'':'disabled'}>${navIcons.undo}Desfazer movimento</button><label class="afternoon-switch"><input type="checkbox" disabled> Habilitar aulas à tarde</label><button type="button" disabled>${navIcons.add}Adicionar aula à tarde</button></div>`:''}</div>${mode==='cohort'?'<p class="afternoon-note">Aulas à tarde: em breve — aguardando definição dos horários.</p>':''}${mode === 'graduate' ? graduateNote(g.id, p) : ''}<div class="print-warning">${[...Core.hardIssues(db, p.lessons), ...Core.completeness(db, p)].length ? 'RASCUNHO — esta grade contém conflitos ou cargas incompletas.' : ''}</div><div class="scroll"><table class="grid"><thead><tr><th>Horário</th>${days.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${Core.times.map((t, slot) => `${slot === 2 ? '<tr class="break"><td colspan="6">09:10–09:20 · INTERVALO</td></tr>' : ''}<tr><td class="time">${t}</td>${days.map((_, day) => { const ls = g.lessons.filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length); return `<td data-cohort="${mode === 'cohort' ? esc(g.id) : ''}" data-day="${day}" data-slot="${slot}">${ls.map(l => { const o = db.offers.find(o => o.id === l.offer)!; return `<div class="lesson subject-${subjectTone(o.subject)} ${l.locked ? 'locked' : ''}" tabindex="0" role="button" aria-label="Selecionar aula; botão direito ou Shift+F10 para alterar sala" draggable="${mode === 'cohort' && !l.locked}" data-lesson="${l.id}">${slot === l.slot ? `<button data-lock="${l.id}" title="Fixar ou destravar aula">${navIcons[l.locked ? 'lock' : 'unlock']}</button>` : ''}<b>${esc(name('subjects', o.subject))}</b><small>${esc(name('teachers', o.teacher))}<br>${esc(name('rooms', l.room))}</small></div>`; }).join('') || '<div class="free">—</div>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div></article>`).join('') || '<div class="panel">Nenhum registro para esta visualização.</div>';
-    $('#tables').insertAdjacentHTML('afterbegin', printHeader);
+    $('#tables').insertAdjacentHTML('beforeend', printDocument(groups, p, mode));
     $$('[data-undo-cohort]').forEach(b => b.onclick = () => undoMove(b.dataset.undoCohort!));
     $$('[data-lesson]').forEach(el => {
         el.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); openRoomEditor(el.dataset.lesson!); };
