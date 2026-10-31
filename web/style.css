@@ -45,3 +45,24 @@ aside{overflow-y:auto}.bottom{padding-top:20px}
 
 /* Uniform outline SVG icons, independent of OS fonts and emoji rendering. */
 .ui-icon{width:19px;height:19px;flex:0 0 19px;vertical-align:middle;pointer-events:none;display:inline-block}.nav-icon{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px}.nav-icon .ui-icon{width:20px;height:20px}.brand .ui-icon{width:23px;height:23px;color:#135f49}button>.ui-icon{margin-right:7px}.lesson button>.ui-icon{width:14px;height:14px;margin:0}.lesson.locked button{color:#967025;background:#fff8e4}.record-label{display:inline-flex;align-items:center;gap:10px}.record-label>.ui-icon{color:#5d7b6f}.window-title>.ui-icon{color:#e6d6ad;width:17px;height:17px}@media print{.lesson button .ui-icon{display:none}}
+
+
+/* CelGrade 0.8.2 — iconografia com contraste e indicadores fáceis de reconhecer. */
+nav button{gap:10px;padding:6px 8px;min-height:44px;transition:background .16s,color .16s}
+.nav-icon{width:30px;height:30px;flex:0 0 30px;border-radius:9px;background:#eaf2ed;color:#3d7865;transition:background .16s,color .16s}
+.nav-icon .ui-icon{width:20px;height:20px}
+nav button:hover .nav-icon{background:#dcebe1;color:#135f49}
+nav .active .nav-icon{background:#135f49;color:#fff}
+.actions button,.records-panel td button{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.actions button>.ui-icon,.records-panel td button>.ui-icon{margin-right:0}
+.metric-card{display:flex;align-items:center;gap:13px;min-width:0;min-height:106px;padding:17px 15px;background:#fbfdfb;border:1px solid #dce7df;border-radius:12px;box-shadow:0 2px 10px #16463308}
+.metric-icon{display:inline-grid;place-items:center;flex:0 0 46px;width:46px;height:46px;border-radius:12px;background:#e5f2ea;color:#17694e}
+.metric-icon .ui-icon{width:25px;height:25px;flex-basis:25px}
+.metric-content{display:flex;flex-direction:column;gap:4px;min-width:0}
+.metrics .metric-value{display:block;margin:0;color:#204e40;font-size:27px;line-height:1.15;font-variant-numeric:tabular-nums}
+.metric-label{font-size:12px;line-height:1.4;font-weight:600;color:#506c5e}
+.metric-card--graduates .metric-icon{background:#eaf3e6;color:#3b7651}
+.metric-card--fixed .metric-icon{background:#faf1db;color:#97712a}
+.metric-card--gaps .metric-icon{background:#edf2f6;color:#507487}
+@media(max-width:1350px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:750px){.metrics{grid-template-columns:minmax(0,1fr)}}
