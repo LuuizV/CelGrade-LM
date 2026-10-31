@@ -66,3 +66,17 @@ nav .active .nav-icon{background:#135f49;color:#fff}
 .metric-card--gaps .metric-icon{background:#edf2f6;color:#507487}
 @media(max-width:1350px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:750px){.metrics{grid-template-columns:minmax(0,1fr)}}
+
+/* 0.8.3: navegação coerente, cadeados SVG uniformes e dica junto ao ponteiro. */
+nav button:hover .nav-icon{background:#135f49;color:#fff}
+nav .active .nav-icon,nav .active:hover .nav-icon{background:#104d3b;color:#fff}
+.lesson button[data-lock],.lesson.locked button[data-lock]{color:#17694e;background:#e6f2e9}
+.lesson button[data-lock]:hover,.lesson.locked button[data-lock]:hover{color:#fff;background:#17694e}
+.lesson button[data-lock] .ui-icon{overflow:visible}
+.lesson button[data-lock] .lock-shackle{transform-origin:8px 10px}
+.lesson button[data-lock].lock-transition .lock-shackle{animation:celgrade-lock .28s ease-in-out}
+@keyframes celgrade-lock{0%{transform:translateY(-3px)}55%{transform:translateY(1px)}100%{transform:translateY(0)}}
+#tip{position:fixed;left:0;top:0;right:auto;bottom:auto;width:max-content;max-width:min(360px,calc(100vw - 24px));max-height:min(230px,calc(100vh - 24px));overflow:auto;z-index:10000;pointer-events:none;background:#173f34;color:white;box-shadow:0 8px 28px #112e2850}
+body:has(#tip:not([hidden])) main{padding-bottom:110px}
+#notice,#error{white-space:pre-line;line-height:1.6}
+@media(prefers-reduced-motion:reduce){.lesson button[data-lock].lock-transition .lock-shackle{animation:none}}
