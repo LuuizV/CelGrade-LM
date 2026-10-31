@@ -377,7 +377,7 @@ async function generate() {
         return;
     busy = true;
     clearDrag();
-    const controls = $('button,select').map(el => ({el, disabled: el.hasAttribute('disabled')}));
+    const controls = $$('button,select').map(el => ({el, disabled: el.hasAttribute('disabled')}));
     controls.forEach(x => x.el.setAttribute('disabled', 'true'));
     notice('Comparando alternativas e atendimento dos formandos…', false, true);
     const worker = new Worker('worker.js');
