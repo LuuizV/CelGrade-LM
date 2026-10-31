@@ -124,7 +124,7 @@ O projeto está em evolução. Resultados e PDFs devem ser conferidos por quem o
 - **Registro de mudanças:** [`changelog.json`](changelog.json), utilizado pelo histórico de versões do aplicativo.
 - **Notas de avaliação anteriores:** [`REVISAO-E-TESTES.md`](REVISAO-E-TESTES.md) — documento histórico da etapa 0.3.
 
-**Autoria:** Luiz Jirardi.
+**Autoria:** Luiz Jirardi, Marcus Filho.
 
 ### Licenciamento
 
