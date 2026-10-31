@@ -54,8 +54,8 @@ const iconPaths: Record<string,string> = {
     add: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
     undo: '<path d="M3 8h12a6 6 0 0 1 0 12h-2M3 8l5-5M3 8l5 5"/>',
     pdf: '<path d="M6 3h9l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM15 3v5h4M12 11v6m-3-3 3 3 3-3"/>',
-    lock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 1 1 8 0v3M12 14v3"/>',
-    unlock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2M12 14v3"/>',
+    lock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path class="lock-shackle" d="M8 10V7a4 4 0 1 1 8 0v3"/><path d="M12 14v3"/>',
+    unlock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path class="lock-shackle" d="M8 10V7a4 4 0 0 1 7.5-2"/><path d="M12 14v3"/>',
     weekly: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 18h3M14 18h3"/>',
     attended: '<path d="m2 8 10-5 10 5-10 5L2 8Z"/><path d="M6 10v5c3 2.5 6 3 9 2M22 8v5M15 18l2.5 2.5L22 16"/>',
     gaps: '<rect x="3" y="4" width="17" height="17" rx="2"/><path d="M7 2.5v3M16 2.5v3M3 9h17M7 13h4M7 17h3"/><circle cx="17" cy="17" r="5"/><path d="M17 14.5v2.7l1.6 1"/>'
@@ -70,6 +70,26 @@ function metricCard(kind: string, icon: string, value: number | string, label: s
 }
 const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 function notice(s: string, bad = false) { $('#notice').textContent = s; $('#notice').className = 'visible' + (bad ? ' bad' : ''); }
+function explainError(error: unknown, location: string): string {
+    const raw = error instanceof Error ? error.message : String(error);
+    const detail = raw.replace(/^Error:\s*/, '').trim();
+    const hints: [RegExp,string][] = [
+        [/Oferta inválida/i, 'Revise a disciplina, o professor, a turma, o período e a carga semanal dessa oferta.'],
+        [/Formando inválido/i, 'Confira o período e as disciplinas selecionadas para o formando.'],
+        [/Etapa ou sala da turma inválida/i, 'Informe um semestre válido e escolha uma sala cadastrada ou a opção automática.'],
+        [/Períodos devem ter formato/i, 'Utilize o formato AAAA.1 ou AAAA.2, sem repetir períodos já cadastrados.'],
+        [/ID inválido|Coleção inválida|Aula inválida|Grade inválida|Banco inválido/i, 'Os dados possuem uma referência inconsistente. Confira os cadastros relacionados ou restaure um backup válido.'],
+        [/Limite de busca atingido/i, 'A busca terminou sem comprovar que não existe solução. Tente novamente ou libere restrições.'],
+        [/Não existe grade viável/i, 'Confira a disponibilidade de salas e professores, as aulas fixas e a carga das ofertas.'],
+        [/fetch|network|ECONN|ENOTFOUND/i, 'Verifique a conexão de rede e tente novamente.'],
+    ];
+    const hint = hints.find(([pattern]) => pattern.test(detail))?.[1];
+    return 'Local: ' + location + '\nProblema: ' + detail + (hint ? '\nComo resolver: ' + hint : '\nComo resolver: revise os dados desta operação e tente novamente. Se persistir, consulte o backup ou registre os detalhes do erro.');
+}
+function describeMovement(issues: string[], location: string) {
+    return issues.length ? 'Local: ' + location + '\nMotivo: ' + issues.join('; ') +
+        '\nComo resolver: escolha um horário permitido ou ajuste as disponibilidades, conflitos e aulas fixas indicados.' : 'Movimento permitido.';
+}
 function plan() { return db.plans.find(p => p.id === planId && p.period === period); }
 function name(kind: 'rooms' | 'teachers' | 'subjects' | 'cohorts', id: string) { return db[kind].find(x => x.id === id)?.name || 'Não encontrado'; }
 async function save(next: DB, reason = 'Alteração de ' + (labels[page] || page)) {
@@ -123,7 +143,7 @@ function renderSchedule() {
     if (!plan())
         planId = plans.at(-1)?.id || '';
     const p = plan();
-    $('#content').innerHTML = `<div class="panel no-print schedule-tools"><div class="actions"><div class="command-group"><small>GERAÇÃO</small><div class="actions">${button('generate', '✦ Gerar outra alternativa', 'primary')}<select id="plans"><option value="">Selecione uma grade</option>${options(plans, planId)}</select>${button('cancel-generation', 'Cancelar busca')}</div></div><div class="command-group"><small>EDIÇÃO</small><div class="actions">${button('undo', 'Desfazer movimento')}${button('rename-plan', 'Renomear')}</div></div><div class="command-group"><small>EXPORTAÇÃO E VISUALIZAÇÃO</small><div class="actions">${button('pdf', 'Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div></div></div><p class="muted">As grades anteriores são preservadas. 🔒 fixa uma aula na próxima geração. Arraste uma aula ou clique nela e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Duplas se movem juntas. Clique com o botão direito na aula para alterar sua sala.</p>${!db.offers.length ? button('demo', 'Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
+    $('#content').innerHTML = `<div class="panel no-print schedule-tools"><div class="actions"><div class="command-group"><small>GERAÇÃO</small><div class="actions">${button('generate', '✦ Gerar outra alternativa', 'primary')}<select id="plans"><option value="">Selecione uma grade</option>${options(plans, planId)}</select>${button('cancel-generation', 'Cancelar busca')}</div></div><div class="command-group"><small>EDIÇÃO</small><div class="actions">${button('undo', 'Desfazer movimento')}${button('rename-plan', 'Renomear')}</div></div><div class="command-group"><small>EXPORTAÇÃO E VISUALIZAÇÃO</small><div class="actions">${button('pdf', 'Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div></div></div><p class="muted">As grades anteriores são preservadas. O cadeado fixa uma aula na próxima geração. Arraste uma aula ou clique nela e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Duplas se movem juntas. Clique com o botão direito na aula para alterar sua sala.</p>${!db.offers.length ? button('demo', 'Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
     $('#generate').onclick = generate;
     $('#cancel-generation').hidden = true;
     $<HTMLSelectElement>('#view').value = selectedView;
@@ -167,8 +187,8 @@ function renderTables() {
         el.addEventListener('keydown', e => { if (e.target === el && (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10'))) { e.preventDefault(); e.stopPropagation(); openRoomEditor(el.dataset.lesson!); } });
     });
     $$('[data-lock]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (busy || saving)
-        return; const n = structuredClone(db), p2 = n.plans.find(x => x.id === planId)!; const l = p2.lessons.find(x => x.id === b.dataset.lock)!; l.locked = !l.locked; await save(n, 'Antes de fixar/destravar aula'); undo = []; render(); });
-    $$('[draggable=true]').forEach(el => {
+        return; const n = structuredClone(db), p2 = n.plans.find(x => x.id === planId)!; const l = p2.lessons.find(x => x.id === b.dataset.lock)!; l.locked = !l.locked; await save(n, 'Antes de fixar/destravar aula'); undo = []; render(); const changed = document.querySelector<HTMLElement>('[data-lock="' + l.id + '"]'); changed?.classList.add('lock-transition'); changed?.addEventListener('animationend', () => changed.classList.remove('lock-transition'), {once:true}); });
+    $('[draggable=true]').forEach(el => {
         el.ondragstart = e => { dragId = el.dataset.lesson!; e.dataTransfer!.setData('text/plain', dragId); const ghost = document.createElement('div'); ghost.className = 'drag-preview'; ghost.textContent = el.querySelector('b')?.textContent || 'Aula'; document.body.append(ghost); e.dataTransfer!.setDragImage(ghost, 0, 0); setTimeout(() => ghost.remove(), 0); paintTargets(); };
         el.ondragend = clearDrag;
         el.onclick = e => { e.stopPropagation(); if (busy)
@@ -208,7 +228,7 @@ function renderTables() {
 }
 function subjectTone(id: string) { let hash = 0; for (const c of id) hash = (hash * 31 + c.charCodeAt(0)) >>> 0; return hash % 6; }
 function graduateNote(id: string, p: Plan) { const r = Core.graduateReport(db, p).find(r => r.id === id)!; return `<p class="${r.ok ? 'ok' : 'warning'}">${r.ok ? 'Todas as disciplinas necessárias estão compatíveis.' : esc(r.reasons.join('; '))}${r.limited ? ' Verificação limitada; não é prova de impossibilidade.' : ''}</p>`; }
-function dropText(r: ReturnType<typeof Core.move>) { return r.red.length ? r.red.join('\n') : r.yellow.length ? 'Confirmar exceção:\n' + r.yellow.join('\n') : 'Movimento permitido'; }
+function dropText(r: ReturnType<typeof Core.move>) { return r.red.length ? describeMovement(r.red, 'Quadro de horários') : r.yellow.length ? 'Movimento exige confirmação:\n' + r.yellow.join('\n') : 'Movimento permitido'; }
 function checkDrop(cell: HTMLElement) { const cached = dropCache.get(cell); if (cached)
     return cached; const p = plan()!, l = p.lessons.find(x => x.id === dragId); if (!l)
     return { plan: p, red: ['Aula não encontrada'], yellow: [] }; const o = db.offers.find(x => x.id === l.offer)!; if (cell.dataset.cohort !== o.cohort)
@@ -223,7 +243,7 @@ async function applyDrop(cell: HTMLElement) {
     const r = checkDrop(cell);
     clearDrag();
     if (r.red.length) {
-        notice('Movimento bloqueado. ' + r.red.join('; '), true);
+        notice(describeMovement(r.red, 'Quadro de horários — movimentação de aula'), true);
         return;
     }
     if (r.yellow.length && !confirm('Atenção: este movimento altera o atendimento dos formandos.\n\n' + r.yellow.join('\n') + '\n\nPermitir esta exceção?'))
@@ -242,7 +262,7 @@ async function applyDrop(cell: HTMLElement) {
         notice(r.yellow.length ? 'Alteração salva com exceção para formandos.' : 'Alteração salva.');
     }
     catch (e) {
-        notice(String(e), true);
+        notice(explainError(e, labels[page] || 'Operação atual'), true);
     }
 }
 async function renamePlan() { const p = plan(); if (!p)
@@ -300,7 +320,7 @@ async function generate() {
     }
     catch (err) {
         finish();
-        notice(String(err), true);
+        notice(explainError(err, labels[page] || 'Operação atual'), true);
     } };
     worker.onerror = e => { finish(); notice('Falha no gerador: ' + e.message, true); };
     worker.postMessage({ db, period, base: plan(), seed: Date.now() });
@@ -351,7 +371,7 @@ async function remove(id: string) { if (!confirm('Excluir este registro? Registr
     if (typeof ReleaseHistory !== 'undefined') void initReleaseHistory();
 }
 catch (e) {
-    notice('Não foi possível excluir. Remova os vínculos antes. ' + String(e), true);
+    notice(explainError(e, labels[page] + ' — exclusão') + '\nAntes de excluir, verifique se o registro está ligado a alguma oferta ou grade.', true);
 } }
 $('#form').onsubmit = async (e) => { e.preventDefault(); if (renamingPlan) {
     const n = structuredClone(db);
@@ -363,7 +383,7 @@ $('#form').onsubmit = async (e) => { e.preventDefault(); if (renamingPlan) {
         render();
     }
     catch (err) {
-        $('#error').textContent = String(err);
+        $('#error').textContent = explainError(err, $('#edit-title').textContent || 'Cadastro');
     }
     return;
 } const f = new FormData(e.target as HTMLFormElement), n = structuredClone(db), rows = (n as any)[page] as any[], old = rows.find(x => x.id === editing); const x: any = { id: editing || Core.uid() }; if (page !== 'offers')
@@ -394,7 +414,7 @@ else
     notice('Cadastro salvo. Grades existentes foram preservadas; confira os avisos no quadro.');
 }
 catch (err) {
-    $('#error').textContent = String(err);
+    $('#error').textContent = explainError(err, $('#edit-title').textContent || 'Cadastro');
 } };
 $('#cancel').onclick = () => $<HTMLDialogElement>('#editor').close();
 function renderPeriods() { $('#content').innerHTML = `<div class="panel"><h2>Períodos letivos</h2><p class="muted">2027.1 = primeiro semestre do ano. A etapa da turma (1º, 5º etc.) é cadastrada em Turmas.</p>${db.periods.map(p => `<p>${p}</p>`).join('')}<label>Novo período<input id="new-period" placeholder="2027.2" pattern="[0-9]{4}\.[12]"></label>${button('add-period', 'Adicionar período', 'primary')}</div>`; $('#add-period').onclick = async () => { const n = structuredClone(db); const value = $<HTMLInputElement>('#new-period').value.trim(); n.periods.push(value); try {
@@ -545,14 +565,25 @@ function openRoomEditor(id: string) {
         committing = true; cancel.disabled = true; submit.disabled = true; select.disabled = true;
         const n = structuredClone(db); n.plans = n.plans.map(p => p.id === selectedPlan ? result.plan : p);
         try { await save(n,'Antes de alterar sala'); undo.push(previous); if(undo.length>30)undo.shift(); dialog.close(); render(); notice('Sala alterada. O horário e a turma foram mantidos.'); }
-        catch (error) { status.textContent = 'Não foi possível salvar: '+String(error); status.className='bad'; committing=false; cancel.disabled=false; submit.disabled=false; select.disabled=false; }
+        catch (error) { status.textContent = explainError(error, 'Quadro de horários — alteração da sala'); status.className='bad'; committing=false; cancel.disabled=false; submit.disabled=false; select.disabled=false; }
     };
     preview(); dialog.showModal(); select.focus();
 }
 
 
-function positionDropTip(_x: number, _y: number) {
-    const tip = $('#tip'); tip.style.left = ''; tip.style.top = '';
+function positionDropTip(x: number, y: number) {
+    const tip = $('#tip');
+    const offset = 16, margin = 12;
+    const width = tip.offsetWidth || 330, height = tip.offsetHeight || 90;
+    const maxX = Math.max(margin, window.innerWidth - width - margin);
+    const maxY = Math.max(margin, window.innerHeight - height - margin);
+    const preferLeft = x + width + offset > window.innerWidth - margin;
+    const preferAbove = y + height + offset > window.innerHeight - margin;
+    const left = preferLeft ? x - width - offset : x + offset;
+    const top = preferAbove ? y - height - offset : y + offset;
+    tip.style.left = Math.max(margin, Math.min(maxX, left)) + 'px';
+    tip.style.top = Math.max(margin, Math.min(maxY, top)) + 'px';
+    tip.style.right = 'auto'; tip.style.bottom = 'auto';
 }
 function renderAbout() {
     const icon = {
