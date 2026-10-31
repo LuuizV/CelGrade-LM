@@ -88,3 +88,48 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
 .drag-tip-title{display:block;padding:9px 12px;background:#edf7ef;color:#214c3d;font-size:12px;font-weight:650;line-height:1.4;overflow-wrap:anywhere;border-bottom:1px solid #c6dccd}
 .drag-tip-description{display:block;padding:10px 12px;background:#173f34;color:#fff;font-size:11px;line-height:1.5;white-space:pre-line;overflow-wrap:anywhere}
 @media print{#tip,.drag-preview{display:none!important}}
+
+/* 0.9: avisos temporários; seleção sinalizada; operações locais por turma. */
+#notice{transition:opacity .25s ease}#notice:not(.visible){display:none;opacity:0}
+.plan-select[data-status=green]{background:#d7efdf!important;border-color:#51936b!important;color:#174e35;font-weight:650}
+.plan-select[data-status=yellow]{background:#fff0b8!important;border-color:#bf9b3a!important;color:#735115;font-weight:650}
+.plan-select[data-status=red]{background:#f9d9d6!important;border-color:#ca8078!important;color:#8a352e;font-weight:650}
+.group-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.group-heading h2{margin:0}.cohort-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cohort-actions>button{display:inline-flex;gap:6px;align-items:center;font-size:11px;padding:6px 9px;min-height:30px}
+.cohort-actions .ui-icon{width:14px;height:14px}
+.afternoon-switch{display:inline-flex;gap:6px;align-items:center;margin:0;font-size:11px;color:#657e70}
+.afternoon-switch input{width:16px;height:16px}
+.afternoon-note{font-size:10px;color:#7b8c82;margin:7px 0}
+#print-header{display:none}
+@media print{
+  @page{size:A4 landscape;margin:12mm}
+  html,body{background:white!important;color:#1e342c!important;margin:0!important;padding:0!important}
+  .window-title,aside,header,footer,#notice,#tip,#report,.schedule-tools,.no-print,dialog,.group-heading .cohort-actions,.afternoon-note{display:none!important}
+  main{margin:0!important;padding:0!important;max-width:none!important}
+  #tables{display:block!important}
+  #print-header{display:block!important;border-bottom:2px solid #17694e;padding:0 0 12px;margin:0 0 18px}
+  #print-header h1{font-size:21px;letter-spacing:0;color:#174b37;margin:4px 0 5px}
+  #print-header p{font-size:10px;color:#566b60;margin:0}
+  .print-eyebrow{font-size:9px;letter-spacing:1.5px;font-weight:700;color:#63907a}
+  .schedule-tables>article.panel{border:0!important;box-shadow:none!important;border-radius:0;padding:0!important;margin:0 0 20px!important;break-inside:avoid-page;page-break-inside:avoid;break-after:page;page-break-after:always;background:#fff}
+  .schedule-tables>article.panel:last-child{break-after:auto;page-break-after:auto}
+  .group-heading{display:flex!important;align-items:center;margin:0 0 12px;border-bottom:1px solid #d6e4d9;padding-bottom:8px}
+  .group-heading h2{font-size:15px;margin:0;color:#174b37}
+  .group-heading .tag{font-size:10px;background:#eef5ef}
+  .print-warning{font-size:10px;margin:5px 0 10px}
+  .scroll{overflow:visible!important}
+  .grid{width:100%!important;min-width:0!important;table-layout:fixed;border-collapse:collapse;border:1px solid #dce6dd}
+  .grid th,.grid td{border:1px solid #dce6dd!important;vertical-align:middle}
+  .grid th{font-size:10px;padding:7px 4px!important;background:#edf4ef!important;color:#315e49}
+  .grid th:first-child{width:88px!important}
+  .grid td{height:auto!important;min-height:42px!important;padding:4px!important}
+  .grid .time{font-size:9px;padding:5px!important;white-space:nowrap;background:#f4f7f4!important}
+  .grid .lesson{min-height:0!important;margin:1px!important;padding:5px!important;border-left-width:3px;border-radius:3px;break-inside:avoid;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+  .grid .lesson b{font-size:9px;line-height:1.2}
+  .grid .lesson small{font-size:8px;line-height:1.25;opacity:1}
+  .grid .lesson button{display:none!important}
+  .grid .free{padding:5px!important;font-size:9px}
+  .break td{height:auto!important;font-size:8px!important;padding:3px!important}
+  .subject-0,.subject-1,.subject-2,.subject-3,.subject-4,.subject-5{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+}

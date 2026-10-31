@@ -1,5 +1,27 @@
 [
   {
+    "version": "0.9.0",
+    "date": "2026-10-31",
+    "title": "Quadro de horários e PDF aprimorados",
+    "changes": {
+      "Interface": [
+        "Removido o rodapé repetitivo em todas as telas.",
+        "Notificações do topo agora desaparecem automaticamente; dicas durante arraste permanecem.",
+        "Restaurado o botão de excluir alternativa, separado das edições, e renomear permanece em Geração.",
+        "Desfazer movimento disponível em cada turma e opções visuais de aulas à tarde desativadas até definir horários.",
+        "Alternativas identificadas com cores verde, amarelo e vermelho conforme sua condição."
+      ],
+      "Agendamento": [
+        "Nome padrão agora inclui período letivo e hora da criação sem segundos.",
+        "Avisos explicam se sala ou professor não está habilitado no cadastro ou está ocupado por outra disciplina."
+      ],
+      "PDF": [
+        "Documento próprio para impressão A4, com cabeçalho único e tabelas por turma, professor ou formando.",
+        "Cores das disciplinas preservadas, sala e professor visíveis e rótulo 'dupla' removido."
+      ]
+    }
+  },
+  {
     "version": "0.8.5",
     "date": "2026-10-31",
     "title": "Mensagens claras sobre conflitos e pendências",
