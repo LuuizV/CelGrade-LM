@@ -1,5 +1,20 @@
 [
   {
+    "version": "0.8.2",
+    "date": "2026-10-30",
+    "title": "Iconografia refinada e indicadores do quadro",
+    "changes": {
+      "Visual": [
+        "Ícones da navegação, ações e cadastros redesenhados em SVG com espessura uniforme e melhor significado visual.",
+        "Quadro de horários apresenta cartões com ícones próprios para aulas semanais, formandos atendidos, blocos fixos e janelas nas turmas.",
+        "Melhorados alinhamento, contraste e disposição responsiva dos indicadores."
+      ],
+      "Correções": [
+        "Botão de adicionar passa a utilizar o ícone de adição em vez do símbolo de geração de alternativas."
+      ]
+    }
+  },
+  {
     "version": "0.8.1",
     "date": "2026-10-30",
     "title": "Ícones vetoriais consistentes",
