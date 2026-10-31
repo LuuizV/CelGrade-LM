@@ -35,6 +35,7 @@ let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 let selectedView = 'cohort', saving = false;
 let graduateExpanded = localStorage.getItem('celgrade-graduates-expanded') !== 'false';
 let renamingPlan: string | null = null;
+let lastRenderedPage: string | null = null;
 const dropCache = new Map<HTMLElement, ReturnType<typeof Core.move>>();
 const labels: Record<string, string> = { schedule: 'Quadro de horários', rooms: 'Salas', teachers: 'Professores', subjects: 'Disciplinas', cohorts: 'Turmas / etapas', offers: 'Ofertas de disciplinas', graduates: 'Formandos', periods: 'Períodos letivos', backup: 'Dados e backup', about: 'Sobre' };
 // Ícones sem dependência de fontes ou bibliotecas externas: o mesmo traço em toda a interface.
@@ -168,7 +169,11 @@ function options(items: {
 }[], value: string) { return items.map(x => `<option value="${esc(x.id)}" ${x.id === value ? 'selected' : ''}>${esc(x.name)}</option>`).join(''); }
 function download(text: string, file: string) { const url = URL.createObjectURL(new Blob([text], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = file; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
 function render() {
+    const changedPage=lastRenderedPage!==page;
     clearDrag();
+    // Mantém o seletor fora do conteúdo antes que uma aba seja re-renderizada.
+    const periodSelect=$<HTMLSelectElement>('#period');
+    $('#period-anchor').append(periodSelect);
     $('#title').textContent = labels[page];
     $('#nav').innerHTML = Object.entries(labels).map(([key, label]) => `<button data-page="${key}" class="${page === key ? 'active' : ''}"><span class="nav-icon" aria-hidden="true">${navIcons[key]}</span>${label}</button>`).join('');
     $$('[data-page]').forEach(b => b.onclick = () => { if (busy)
@@ -184,7 +189,10 @@ function render() {
         renderPeriods();
     else
         renderList();
-    const content=$('#content');content.classList.remove('page-enter');void content.offsetWidth;content.classList.add('page-enter');
+    const content=$('#content');
+    content.classList.remove('page-enter');
+    if(changedPage){void content.offsetWidth;content.classList.add('page-enter');}
+    lastRenderedPage=page;
 }
 function renderSchedule() {
     const plans = db.plans.filter(p => p.period === period);
@@ -595,16 +603,27 @@ catch (err) {
     $('#error').textContent = explainError(err, $('#edit-title').textContent || 'Cadastro');
 } };
 $('#cancel').onclick = () => $<HTMLDialogElement>('#editor').close();
-function renderPeriods() { $('#content').innerHTML = `<div class="panel"><h2>Períodos letivos</h2><p class="muted">2027.1 = primeiro semestre do ano. A etapa da turma (1º, 5º etc.) é cadastrada em Turmas.</p>${db.periods.map(p => `<p>${p}</p>`).join('')}<label>Novo período<input id="new-period" placeholder="2027.2" pattern="[0-9]{4}\.[12]"></label>${button('add-period', 'Adicionar período', 'primary')}</div>`; $('#add-period').onclick = async () => { const n = structuredClone(db); const value = $<HTMLInputElement>('#new-period').value.trim(); n.periods.push(value); try {
-    await save(n);
-    period = value;
-    planId = '';
-    render();
-    if (typeof ReleaseHistory !== 'undefined') void initReleaseHistory();
+function renderPeriods() {
+    const items=db.periods.map(p=>'<div class="period-entry"><span class="period-entry-icon" aria-hidden="true">'+navIcons.periods+'</span><div class="period-entry-copy"><strong>'+esc(p)+'</strong><small>'+(p.endsWith('.1')?'1º semestre':'2º semestre')+' de '+esc(p.slice(0,4))+'</small></div>'+(p===period?'<span class="period-active-label">Em uso</span>':'<button type="button" data-use-period="'+esc(p)+'">Selecionar</button>')+'</div>').join('');
+    $('#content').innerHTML='<section class="periods-page"><div class="period-cards">'+
+      '<div class="panel period-card"><div class="period-card-heading"><span class="period-card-icon">'+navIcons.periods+'</span><div><h2>Período em uso</h2><p class="muted">Aplicado às demais abas</p></div></div><div id="period-mount"></div><p class="period-current">Período selecionado: <strong>'+esc(period)+'</strong></p></div>'+
+      '<div class="panel period-card"><div class="period-card-heading"><span class="period-card-icon">'+navIcons.add+'</span><div><h2>Cadastrar novo período</h2><p class="muted">Formato: ano e semestre</p></div></div><label for="new-period">Novo período</label><input id="new-period" placeholder="Ex.: 2027.1" pattern="[0-9]{4}\\.[12]" inputmode="text"><div class="period-add-actions">'+button('add-period','Adicionar período','primary')+'</div></div>'+
+      '</div><div class="panel periods-list"><div class="period-list-heading"><h2>Períodos cadastrados</h2><span>'+db.periods.length+' cadastrados</span></div>'+items+'</div>'+
+      '<p class="muted period-note">2027.1 indica o primeiro semestre do ano. A etapa da turma (1º, 5º etc.) é cadastrada em Turmas / etapas.</p></section>';
+    $('#period-mount').append($<HTMLSelectElement>('#period'));
+    $$('[data-use-period]').forEach(button=>button.onclick=()=>{
+        $<HTMLSelectElement>('#period').value=button.dataset.usePeriod!;
+        $('#period').dispatchEvent(new Event('change',{bubbles:true}));
+    });
+    $('#add-period').onclick=async()=>{
+        const value=$<HTMLInputElement>('#new-period').value.trim();
+        if(!/^\\d{4}\\.[12]$/.test(value)){notice('Informe um período válido no formato AAAA.1 ou AAAA.2.',true);return;}
+        if(db.periods.includes(value)){notice('Esse período já está cadastrado.',true);return;}
+        const n=structuredClone(db);n.periods.push(value);n.periods.sort();
+        try{await save(n);period=value;localStorage.setItem('celgrade-active-period',period);planId='';undo=[];render();notice('Período '+value+' cadastrado e selecionado.');}
+        catch(e){notice(explainError(e,'Períodos letivos'),true);}
+    };
 }
-catch (e) {
-    notice(String(e), true);
-} }; }
 function renderBackup() { $('#content').innerHTML = `<div class="panel"><h2>Seus dados, no seu computador</h2><p>${window.desktop ? 'Banco SQLite salvo na pasta de dados do CelGrade LM.' : 'Modo navegador: dados no armazenamento local deste navegador.'}</p><p class="muted">O backup inclui cadastros, formandos, períodos, alternativas e aulas fixas. PDF é para consulta; JSON permite restaurar o trabalho.</p><div class="actions">${button('export', 'Exportar backup JSON')}${button('import', 'Restaurar backup')}${button('recovery', 'Histórico de recuperação')}</div><input type="file" id="file" accept=".json" hidden><div id="recovery-list"></div></div>`; $('#recovery').onclick = showRecovery; $('#export').onclick = () => { if (window.desktop)
     window.desktop.export().catch(e => notice(String(e), true));
 else
@@ -639,12 +658,13 @@ async function showRecovery() {
     $$('[data-recover]').forEach(b => b.onclick = async () => { if (!await confirmInApp('Recuperar dados', 'Todos os cadastros e grades serão restaurados para este ponto.', 'Restaurar dados', true))
         return; db = await window.desktop!.restoreHistory(Number(b.dataset.recover), db.revision); undo = []; period = db.periods[0]; planId = ''; render(); notice('Estado anterior restaurado. O estado substituído está no histórico.'); });
 }
-$('#period').onchange = () => { period = $<HTMLSelectElement>('#period').value; planId = ''; undo = []; render(); };
+$('#period').onchange = () => { period = $<HTMLSelectElement>('#period').value; localStorage.setItem('celgrade-active-period',period); planId = ''; undo = []; render(); };
 $('#folder').onclick = () => window.desktop ? window.desktop.folder() : notice('No navegador, use Dados e backup para exportar os dados.');
 (async () => { try {
     db = window.desktop ? await window.desktop.read() : JSON.parse(localStorage.getItem('celgrade-lm-v2') || 'null') || Core.empty();
     Core.validate(db);
-    period = db.periods[0];
+    const rememberedPeriod=localStorage.getItem('celgrade-active-period');
+    period = rememberedPeriod && db.periods.includes(rememberedPeriod) ? rememberedPeriod : db.periods[0];
     render();
     if (typeof ReleaseHistory !== 'undefined') void initReleaseHistory();
 }
