@@ -34,7 +34,6 @@ let undo: {plan: Plan; cohort: string}[] = [];
 let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 let selectedView = 'cohort', saving = false;
 let graduateExpanded = localStorage.getItem('celgrade-graduates-expanded') !== 'false';
-let chartType: 'bar'|'pie' = localStorage.getItem('celgrade-graduate-chart') === 'pie' ? 'pie' : 'bar';
 let renamingPlan: string | null = null;
 const dropCache = new Map<HTMLElement, ReturnType<typeof Core.move>>();
 const labels: Record<string, string> = { schedule: 'Quadro de horários', rooms: 'Salas', teachers: 'Professores', subjects: 'Disciplinas', cohorts: 'Turmas / etapas', offers: 'Ofertas de disciplinas', graduates: 'Formandos', periods: 'Períodos letivos', backup: 'Dados e backup', about: 'Sobre' };
@@ -76,7 +75,8 @@ const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 function notice(s: string, bad = false, persistent = false) {
     if (noticeTimer) clearTimeout(noticeTimer);
     const el = $('#notice');
-    el.textContent = s; el.className = 'visible' + (bad ? ' bad' : '');
+    $('#notice-text').textContent=s; el.className='visible'+(bad?' bad':'');
+    $('#notice-close').onclick=()=>{el.classList.remove('visible');if(noticeTimer)clearTimeout(noticeTimer);noticeTimer=null;};
     if (!persistent) noticeTimer = setTimeout(() => { el.classList.remove('visible'); noticeTimer = null; }, bad ? 10000 : 4000);
 }
 function explainError(error: unknown, _location: string): string {
@@ -209,11 +209,6 @@ function renderSchedule() {
         const q=Core.quality(db,p),reports=Core.graduateReport(db,p),hard=Core.hardIssues(db,p.lessons),missing=Core.completeness(db,p);
         const gaps=Core.cohortGaps(db,p);
         const attended=reports.filter(g=>g.ok).length;
-        const demands=Core.graduateDemand(db,period);
-        const charts=demands.length ? chartType==='bar'
-          ? '<div class="demand-bars">'+demands.map(x=>'<div class="demand-row"><span>'+esc(x.name)+'</span><div class="demand-track"><span style="width:'+100*x.count/Math.max(1,demands[0].count)+'%"></span></div><b>'+x.count+'</b></div>').join('')+'</div>'
-          : '<div class="demand-pie-layout"><div class="demand-pie" style="background:conic-gradient('+demands.map((x,i)=>{const total=demands.reduce((n,v)=>n+v.count,0);const prev=demands.slice(0,i).reduce((n,v)=>n+v.count,0)/total*100;return ['#17694e','#b18b45','#5c89a7','#9571b2','#bc7483','#63a6a1'][i%6]+' '+prev+'% '+(prev+x.count/total*100)+'%'}).join(',')+')"></div><div class="demand-legend">'+demands.map((x,i)=>'<span><i style="background:'+['#17694e','#b18b45','#5c89a7','#9571b2','#bc7483','#63a6a1'][i%6]+'"></i>'+esc(x.name)+' · '+x.count+'</span>').join('')+'</div></div>'
-          : '<p class="muted">Nenhuma disciplina necessária cadastrada para formandos ativos neste período.</p>';
         $('#report').innerHTML =
           '<div class="panel no-print metrics-panel"><section class="metrics" aria-label="Indicadores do quadro de horários">'+
           metricCard("weekly","weekly",p.lessons.reduce((n,l)=>n+l.length,0),"Aulas semanais")+
@@ -223,14 +218,12 @@ function renderSchedule() {
           '<p class="muted">Janelas são horários vagos entre duas aulas da mesma turma no mesmo dia. Não são conflitos.</p>'+
           (gaps.length?'<div class="record-chips">'+gaps.map(x=>'<span class="record-chip">'+esc(db.cohorts.find(c=>c.id===x.cohort)?.name||'Turma')+' · '+esc(days[x.day])+' · '+esc(Core.times[x.slot])+'</span>').join('')+'</div>':'<p class="muted">Nenhuma janela nesta alternativa.</p>')+'</details></div>'+
           (hard.length||missing.length?'<div class="panel no-print"><section class="diagnostics" role="status"><h3>⚠ Atenção à grade · '+(hard.length+missing.length)+' aviso(s)</h3>'+[...hard,...missing].map(s=>'<p>'+esc(s)+'</p>').join('')+'</section></div>':'')+
-          '<div class="panel no-print graduate-dashboard"><div class="graduate-dashboard-top"><div><h2>Formandos</h2><p class="muted">'+attended+' de '+reports.length+' atendidos · '+(reports.length?Math.round(attended*100/reports.length):0)+'% compatíveis</p></div><button id="toggle-graduate-dashboard" type="button" aria-expanded="'+graduateExpanded+'">'+(graduateExpanded?'Recolher':'Expandir')+'</button></div>'+
-          '<div id="graduate-dashboard-body" '+(graduateExpanded?'':'hidden')+'><div class="demand-header"><div><h3>Disciplinas mais requisitadas</h3><p class="muted">Número de formandos ativos que precisam de cada disciplina.</p></div><div class="chart-switch" role="group" aria-label="Tipo de gráfico"><button id="chart-bar" type="button" aria-pressed="'+(chartType==='bar')+'">Barras</button><button id="chart-pie" type="button" aria-pressed="'+(chartType==='pie')+'">Pizza</button></div></div>'+charts+
+          '<div class="panel no-print graduate-dashboard"><div class="graduate-dashboard-top"><div class="graduate-title-group"><span class="graduate-title-icon" aria-hidden="true">'+navIcons.attended+'</span><div><h2>Formandos</h2><p class="muted">'+attended+' de '+reports.length+' atendidos · '+(reports.length?Math.round(attended*100/reports.length):0)+'% compatíveis</p></div></div><button id="toggle-graduate-dashboard" type="button" aria-expanded="'+graduateExpanded+'">'+(graduateExpanded?'Recolher':'Expandir')+'</button></div>'+
+          '<div id="graduate-dashboard-body" '+(graduateExpanded?'':'hidden')+'>'+ 
           '<section class="graduate-list"><div class="section-heading"><h3>Formandos · '+attended+'/'+reports.length+' compatíveis</h3><button id="expand-graduates" type="button">Expandir todos</button></div>'+
           reports.map(g=>'<details class="summary '+(g.ok?'ok':'warning')+'"><summary><span class="avatar" aria-hidden="true">'+esc(g.name.slice(0,1))+'</span><b>'+esc(g.name)+'</b><span>'+(g.ok?'Disciplinas compatíveis':'Pendências')+'</span></summary><p>'+(g.ok?'Todas as disciplinas necessárias estão compatíveis.':esc(g.reasons.join('; ')))+(g.limited?' (nem todos os horários puderam ser conferidos)':'')+'</p></details>').join('')+
           '</section></div></div>';
         $('#toggle-graduate-dashboard').onclick=()=>{graduateExpanded=!graduateExpanded;localStorage.setItem('celgrade-graduates-expanded',String(graduateExpanded));$('#graduate-dashboard-body').hidden=!graduateExpanded;$('#toggle-graduate-dashboard').textContent=graduateExpanded?'Recolher':'Expandir';$('#toggle-graduate-dashboard').setAttribute('aria-expanded',String(graduateExpanded))};
-        $('#chart-bar').onclick=()=>{chartType='bar';localStorage.setItem('celgrade-graduate-chart','bar');renderSchedule()};
-        $('#chart-pie').onclick=()=>{chartType='pie';localStorage.setItem('celgrade-graduate-chart','pie');renderSchedule()};
     }
     const expand=document.querySelector<HTMLButtonElement>('#expand-graduates');
     if(expand)expand.onclick=()=>{const entries=$$('.graduate-list details') as HTMLDetailsElement[];const open=entries.some(d=>!d.open);entries.forEach(d=>d.open=open);expand.textContent=open?'Recolher todos':'Expandir todos'};
@@ -821,6 +814,7 @@ function renderAbout() {
 <h3>À Celina</h3>
 <p>Dedicamos esta ferramenta à Celina, que, com carinho, paciência e dedicação, trabalha diariamente para tornar a jornada acadêmica dos estudantes mais leve e agradável. Seu compromisso em ajudar a todos faz a diferença nas nossas vidas.</p>
 <p>Que o CelGrade LM possa contribuir para tornar suas tarefas mais simples e menos cansativas, retribuindo, pelo menos um pouco, todo o cuidado e a atenção que você dedica a nós. Esta ferramenta é também uma forma de expressar nossa gratidão por tudo o que você representa para os estudantes.</p>
+<p>O jasmim foi escolhido como símbolo desta homenagem por representar delicadeza, serenidade e harmonia, qualidades que reconhecemos em Celina e no carinho que dedica aos estudantes.</p>
 </blockquote>
 </article>`;
 }
