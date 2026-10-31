@@ -9,3 +9,19 @@ test('worker cancellation preserves original plans',async()=>{const a=await app(
 test('room editor keyboard access, failed save, retry and undo',async()=>{const a=await app();try{const {w,$,store}=a;const before=store.read();$('.lesson[data-lesson="b"]').dispatchEvent(new w.KeyboardEvent('keydown',{key:'F10',shiftKey:true,bubbles:true}));assert($('#room-editor').open);$('#room-select').value='r2';$('#room-select').dispatchEvent(new w.Event('change'));const original=w.desktop.save;w.desktop.save=async()=>{throw Error('disco cheio')};$('#room-save').click();await tick();assert.deepEqual(store.read(),before);assert($('#room-status').textContent.includes('disco cheio'));w.desktop.save=original;$('#room-save').click();await tick();assert.equal(w.document.querySelector('#room-editor'),null);assert.equal(store.read().plans[0].lessons.find(l=>l.id==='b').room,'r2');$('#undo').click();await tick();assert.equal(store.read().plans[0].lessons.find(l=>l.id==='b').room,'r1');}finally{await a.close()}});
 
 test('visual refresh preserves controls and expandable graduate details',async()=>{const a=await app();try{const {$,w,store}=a;const before=store.read();assert.equal(w.document.querySelectorAll('.command-group').length,3);for(const id of ['generate','plans','undo','rename-plan','pdf','view'])assert($('#'+id));const detail=$('.graduate-list details');assert(!detail.open);$('#expand-graduates').click();assert(detail.open);$('#expand-graduates').click();assert(!detail.open);assert.deepEqual(store.read(),before);assert($('.lesson').className.includes('subject-'));}finally{await a.close()}});
+
+test('indicadores da grade e ícones de navegação permanecem acessíveis',async()=>{
+ const a=await app();try{
+  const {w,$}=a;
+  const cards=[...w.document.querySelectorAll('.metrics .metric-card')];
+  assert.equal(cards.length,4);
+  assert.deepEqual(cards.map(c=>c.querySelector('.metric-label')?.textContent),[
+   'Aulas semanais','Formandos atendidos','Blocos fixos','Janelas nas turmas'
+  ]);
+  assert(cards.every(c=>c.querySelector('.metric-icon svg[aria-hidden="true"]')));
+  assert.equal(w.document.querySelectorAll('nav button[data-page] .ui-icon').length,10);
+  assert($('#generate').querySelector('svg'));
+  assert($('#undo').querySelector('svg'));
+  assert($('#pdf').querySelector('svg'));
+ }finally{await a.close();}
+});
