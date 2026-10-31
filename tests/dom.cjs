@@ -215,3 +215,37 @@ test('0.9.5: sem graficos, com icone, notificacoes e titulo semantico',async()=>
   $('[data-page="about"]').click();assert($('.about-dedication').textContent.includes('jasmim'));
  }finally{await a.close();}
 });
+
+test('0.9.6: seletor de períodos somente na aba apropriada e seleção persistente',async()=>{
+ const a=await app();try{const {w,$}=a;
+  assert.equal($('#period').closest('#period-anchor')?.id,'period-anchor');
+  $('[data-page="periods"]').click();
+  assert($('#period').closest('#period-mount'));
+  assert($('.periods-list'));
+  assert($('.period-current').textContent.includes('2027.1')||$('.period-current').textContent.includes('2027.2'));
+  const selectable=w.document.querySelector('[data-use-period]');
+  if(selectable){selectable.click();assert.equal($('#period').value,selectable.dataset.usePeriod);assert.equal(w.localStorage.getItem('celgrade-active-period'),selectable.dataset.usePeriod);}
+  $('[data-page="schedule"]').click();
+  assert($('#period').closest('#period-anchor'));
+ }finally{await a.close();}
+});
+test('0.9.6: animação de entrada ocorre ao trocar de aba, não ao editar aula',async()=>{
+ const a=await app();try{const {w,$}=a;
+  assert($('#content').classList.contains('page-enter'));
+  $('[data-page="periods"]').click();
+  assert($('#content').classList.contains('page-enter'));
+  $('#period').dispatchEvent(new w.Event('change',{bubbles:true}));
+  assert(!$('#content').classList.contains('page-enter'));
+  $('[data-page="schedule"]').click();
+  assert($('#content').classList.contains('page-enter'));
+  $('[data-lock]').click();await tick();
+  assert(!$('#content').classList.contains('page-enter'));
+ }finally{await a.close();}
+});
+test('0.9.6: marca não repete o nome e possui wordmark lateral',async()=>{
+ const a=await app();try{const {$}=a;
+ assert.equal($('.window-title strong'),null);
+ assert($('.window-motto').textContent.includes('Menos conflitos'));
+ assert.equal($('.brand-lockup').getAttribute('src'),'brand-lockup.svg');
+ }finally{await a.close();}
+});
