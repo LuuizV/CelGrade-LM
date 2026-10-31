@@ -51,3 +51,29 @@ test('0.8.5: relatório dos formandos usa explicação clara do choque',async()=
   assert(!txt.includes('Como resolver:'));
  }finally{await a.close();}
 });
+
+test('0.8.5: prévia do arraste une título e aviso sem sobreposição',async()=>{
+ const a=await app();try{
+  const {w,$}=a;
+  const el=$('.lesson[data-lesson="b"]');
+  const drag=new w.Event('dragstart',{bubbles:true,cancelable:true});
+  let preview;
+  Object.defineProperty(drag,'dataTransfer',{value:{
+   setData(){},setDragImage(node){preview=node;}
+  }});
+  el.dispatchEvent(drag);
+  assert(preview,'Prévia nativa do arraste ausente');
+  assert.equal(preview.textContent,'','A prévia nativa não deve duplicar o título');
+  const cell=$('td[data-cohort="c1"][data-day="3"][data-slot="0"]');
+  cell.dispatchEvent(new w.MouseEvent('mousemove',{bubbles:true,clientX:120,clientY:95}));
+  const tip=$('#tip');
+  assert.equal(tip.hidden,false);
+  assert.equal(tip.querySelectorAll('.drag-tip-title').length,1);
+  assert.equal(tip.querySelectorAll('.drag-tip-description').length,1);
+  assert.match(tip.querySelector('.drag-tip-title').textContent,/Cálculo I/);
+  assert.match(tip.querySelector('.drag-tip-description').textContent,/Quinta/);
+  assert(!tip.querySelector('.drag-tip-title').contains(tip.querySelector('.drag-tip-description')));
+  el.dispatchEvent(new w.Event('dragend'));
+  assert.equal(tip.hidden,true);
+ }finally{await a.close();}
+});
