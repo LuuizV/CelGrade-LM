@@ -128,3 +128,13 @@ test('0.9.0: desfazer movimento em uma turma preserva outra',async()=>{
   assert.equal(store.read().plans[0].lessons.find(l=>l.id==='b').day,0);
  }finally{await a.close();}
 });
+
+test('0.9.0: lista de alternativas inclui classificação individual e cor',async()=>{
+ const a=await app();try{const {$,w}=a;
+  const item=$('#plans').querySelector('option[data-status]');
+  assert(item);
+  assert.equal(item.dataset.status,'green');
+  assert.equal($('#plans').dataset.status,'green');
+  assert.match(item.textContent,/🟢/);
+ }finally{await a.close();}
+});
