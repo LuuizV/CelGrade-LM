@@ -1,5 +1,18 @@
 [
   {
+    "version": "0.8.4",
+    "date": "2026-10-31",
+    "title": "Validação precisa dos dados acadêmicos",
+    "changes": {
+      "Melhorias": [
+        "Erros de cadastros identificam o registro e o campo que precisam de correção.",
+        "Erros de aula referenciam disciplina, grade, dia e horário quando disponíveis.",
+        "Mensagens de disponibilidade informam dia e intervalo; erros de carga apresentam a soma das ofertas envolvidas.",
+        "Mensagens estruturadas não recebem textos genéricos duplicados."
+      ]
+    }
+  },
+  {
     "version": "0.8.3",
     "date": "2026-10-30",
     "title": "Ícones, avisos de erro e interação na grade",
