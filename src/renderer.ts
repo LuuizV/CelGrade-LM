@@ -177,7 +177,7 @@ function renderTables() {
     $$('[data-lock]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (busy || saving)
         return; const n = structuredClone(db), p2 = n.plans.find(x => x.id === planId)!; const l = p2.lessons.find(x => x.id === b.dataset.lock)!; l.locked = !l.locked; await save(n, 'Antes de fixar/destravar aula'); undo = []; render(); const changed = document.querySelector<HTMLElement>('[data-lock="' + l.id + '"]'); changed?.classList.add('lock-transition'); changed?.addEventListener('animationend', () => changed.classList.remove('lock-transition'), {once:true}); });
     $$('[draggable=true]').forEach(el => {
-        el.ondragstart = e => { dragId = el.dataset.lesson!; e.dataTransfer!.setData('text/plain', dragId); const ghost = document.createElement('div'); ghost.className = 'drag-preview'; ghost.textContent = el.querySelector('b')?.textContent || 'Aula'; document.body.append(ghost); e.dataTransfer!.setDragImage(ghost, 0, 0); setTimeout(() => ghost.remove(), 0); paintTargets(); };
+        el.ondragstart = e => { dragId = el.dataset.lesson!; e.dataTransfer!.setData('text/plain', dragId); const ghost = document.createElement('div'); ghost.className = 'drag-preview'; ghost.setAttribute('aria-hidden', 'true'); document.body.append(ghost); e.dataTransfer!.setDragImage(ghost, 0, 0); setTimeout(() => ghost.remove(), 0); paintTargets(); };
         el.ondragend = clearDrag;
         el.onclick = e => { e.stopPropagation(); if (busy)
             return; const id = el.dataset.lesson!; if (dragId) {
@@ -196,8 +196,24 @@ function renderTables() {
     });
     $$('td[data-cohort]').forEach(cell => {
         cell.tabIndex = 0;
-        const show = (e: MouseEvent) => { if (!dragId)
-            return; const r = checkDrop(cell); $('#tip').hidden = false; $('#tip').textContent = `${days[Number(cell.dataset.day)]} · ${Core.times[Number(cell.dataset.slot)]}\n${dropText(r)}`; positionDropTip(e.clientX, e.clientY); };
+        const show = (e: MouseEvent) => {
+            if (!dragId) return;
+            const r = checkDrop(cell);
+            const lesson = plan()?.lessons.find(l => l.id === dragId);
+            const offer = db.offers.find(o => o.id === lesson?.offer);
+            const title = offer ? name('subjects', offer.subject) : 'Aula';
+            const detail = days[Number(cell.dataset.day)] + ' · ' +
+                Core.times[Number(cell.dataset.slot)] + '\n' + dropText(r);
+            const tip = $('#tip');
+            if (tip.dataset.dragTitle !== title || tip.dataset.dragDetail !== detail) {
+                tip.innerHTML = '<div class="drag-tip-title">' + esc(title) + '</div>' +
+                    '<div class="drag-tip-description">' + esc(detail) + '</div>';
+                tip.dataset.dragTitle = title;
+                tip.dataset.dragDetail = detail;
+            }
+            tip.hidden = false;
+            positionDropTip(e.clientX, e.clientY);
+        };
         cell.ondragover = e => { if (dragId) {
             e.preventDefault();
             show(e);
@@ -222,7 +238,7 @@ function checkDrop(cell: HTMLElement) { const cached = dropCache.get(cell); if (
     return { plan: p, red: ['Aula não encontrada'], yellow: [] }; const o = db.offers.find(x => x.id === l.offer)!; if (cell.dataset.cohort !== o.cohort)
     return { plan: p, red: ['Mova dentro da mesma turma. A oferta não muda de turma pelo arraste.'], yellow: [] }; return Core.move(db, p, l.id, +cell.dataset.day!, +cell.dataset.slot!, l.room); }
 function paintTargets() { dropCache.clear(); $$('td[data-cohort]').forEach(c => { c.classList.remove('red', 'yellow', 'green'); const r = checkDrop(c); dropCache.set(c, r); c.classList.add(r.red.length ? 'red' : r.yellow.length ? 'yellow' : 'green'); c.title = dropText(r); }); $$('[data-lesson]').forEach(el => el.classList.toggle('selected', el.dataset.lesson === dragId)); }
-function clearDrag() { dragId = ''; dropCache.clear(); $('#tip').hidden = true; $$('td[data-cohort]').forEach(c => { c.classList.remove('red', 'yellow', 'green'); c.removeAttribute('title'); }); $$('.lesson.selected').forEach(c => c.classList.remove('selected')); }
+function clearDrag() { dragId = ''; dropCache.clear(); $('#tip').hidden = true; delete $('#tip').dataset.dragTitle; delete $('#tip').dataset.dragDetail; $$('td[data-cohort]').forEach(c => { c.classList.remove('red', 'yellow', 'green'); c.removeAttribute('title'); }); $$('.lesson.selected').forEach(c => c.classList.remove('selected')); }
 window.addEventListener('keydown', e => { if (e.key === 'Escape')
     clearDrag(); });
 async function applyDrop(cell: HTMLElement) {
