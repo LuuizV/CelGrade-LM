@@ -108,7 +108,12 @@ test('0.9.0: PDF separado agrupa aulas duplas e exibe professores e salas',async
   assert.match(doc.textContent,/Sala 101/);
   assert.equal(doc.textContent.includes(' · dupla'),false);
   assert.equal(doc.querySelectorAll('.print-grid').length,2);
-  assert(doc.querySelector('.print-grid td[rowspan="2"]'),'Aulas de dois horários devem ocupar uma célula única');
+  assert.equal(doc.querySelectorAll('.print-grid td[rowspan]').length,0,'Cada aula aparece separadamente nos dois horários');
+  assert.equal([...doc.querySelectorAll('.print-sheet:first-of-type .print-lesson strong')]
+    .filter(x=>x.textContent==='Algoritmos').length,2,'Disciplina dupla deve aparecer em ambas as linhas');
+  assert.equal(doc.querySelectorAll('.print-grid').length,2);
+  assert.equal(doc.querySelectorAll('.print-interval').length,2);
+  assert.equal(doc.querySelectorAll('.print-slot-row').length,12);
   assert.equal(doc.textContent.includes('CelGrade LM · Grade'),false);
  }finally{await a.close();}
 });
@@ -136,5 +141,18 @@ test('0.9.0: lista de alternativas inclui classificação individual e cor',asyn
   assert.equal(item.dataset.status,'green');
   assert.equal($('#plans').dataset.status,'green');
   assert.match(item.textContent,/🟢/);
+ }finally{await a.close();}
+});
+
+test('0.9.1: impressão possui página branca e cartões em horários separados',async()=>{
+ const a=await app();try {
+  const {w,$}=a;
+  const documentPrint=$('#print-document');
+  assert.equal(documentPrint.querySelectorAll('.print-grid td[rowspan]').length,0);
+  assert(documentPrint.querySelectorAll('.print-slot-row').length>=6);
+  const css=require('node:fs').readFileSync(require('node:path').join(__dirname,'../web/style.css'),'utf8');
+  assert.match(css,/:root,html,body,main,#content,#tables,#print-document,.print-sheet\s*\{\s*background:#fff!important/);
+  assert.match(css,/\.print-grid tbody tr\.print-slot-row\{height:21mm!important/);
+  assert.match(css,/\.print-grid \.print-lesson strong\{font-size:11px!important/);
  }finally{await a.close();}
 });

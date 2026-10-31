@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.9.1",
+    "date": "2026-10-31",
+    "title": "PDF mais limpo, branco e legível",
+    "changes": {
+      "Impressão": [
+        "A página inteira do PDF passa a ter fundo branco, sem tom esverdeado nas margens.",
+        "Aulas com dois períodos voltam a ser exibidas em ambas as linhas, sem o texto 'dupla'.",
+        "Cartões coloridos maiores, textos de disciplinas, professores e salas mais legíveis.",
+        "Tabela acadêmica ampliada para aproveitar melhor o A4 horizontal, com intervalo discreto entre blocos.",
+        "Cabeçalho e títulos reorganizados para impressão, preservando a visualização normal do aplicativo."
+      ]
+    }
+  },
+  {
     "version": "0.9.0",
     "date": "2026-10-31",
     "title": "Quadro de horários e PDF aprimorados",
