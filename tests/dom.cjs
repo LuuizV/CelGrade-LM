@@ -42,3 +42,12 @@ test('0.8.3: SVG dos cadeados, informação de erro e tooltip junto ao mouse',as
   assert($('#tip').textContent.includes('Segunda'));
  }finally{await a.close();}
 });
+
+test('0.8.5: relatório dos formandos usa explicação clara do choque',async()=>{
+ const a=await app();try{
+  const {w}=a;
+  const txt=w.document.querySelector('.graduate-list')?.textContent||'';
+  assert(!txt.includes('sem encaixe na combinação encontrada'));
+  assert(!txt.includes('Como resolver:'));
+ }finally{await a.close();}
+});

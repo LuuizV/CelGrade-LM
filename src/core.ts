@@ -64,8 +64,13 @@ function lessonWhen(day: number, slot: number): string {
     const dayName = weekDays[day] || 'Dia inválido (' + day + ')';
     return dayName + ', ' + (times[slot] || 'horário inválido (' + slot + ')');
 }
-function validationError(local: string, field: string, problem: string, solution: string): never {
-    throw Error('Local: ' + local + '\nCampo: ' + field + '\nProblema: ' + problem + '\nComo resolver: ' + solution);
+function validationError(local: string, _field: string, problem: string, _solution: string): never {
+    const subject = local
+        .replace(/^(Salas|Professores|Disciplinas|Turmas \/ etapas|Ofertas de disciplinas|Formandos) — /, '')
+        .replace(/^Quadro de horários — /, 'Grade ')
+        .replace(/ \(ID [^)]+\)/g, '')
+        .replace(/ · (?:Segunda|Terça|Quarta|Quinta|Sexta)-feira[^:]*/, '');
+    throw Error(subject + ': ' + problem);
 }
 export function validate(d: DB) {
     if (!d || !Number.isInteger(d.revision))
@@ -77,7 +82,7 @@ export function validate(d: DB) {
         if (typeof p !== 'string' || !/^\d{4}\.[12]$/.test(p))
             validationError('Períodos letivos', 'Período', 'Período inválido: "' + String(p) + '".', 'Use AAAA.1 ou AAAA.2 (ex.: 2027.1).');
         if (periods.has(p))
-            validationError('Períodos letivos', 'Período', 'O período ' + p + ' está cadastrado mais de uma vez.', 'Remova o período repetido.');
+            validationError('Períodos letivos', 'Período', 'o período ' + p + ' foi cadastrado duas vezes.', 'Remova o período repetido.');
         periods.add(p);
     }
     const collections: {key: keyof DB; label: string}[] = [
@@ -110,7 +115,7 @@ export function validate(d: DB) {
                 validationError(local, 'Disponibilidade semanal', 'A disponibilidade deve conter exatamente 30 horários (5 dias × 6 aulas).', 'Abra o cadastro, revise a disponibilidade e salve novamente.');
             const invalid = r.available.findIndex(value => value !== 0 && value !== 1);
             if (invalid !== -1)
-                validationError(local, 'Disponibilidade semanal', 'Valor inválido em ' + lessonWhen(Math.floor(invalid / 6), invalid % 6) + '.', 'Marque ou desmarque o horário correspondente.');
+                validationError(local, 'Disponibilidade semanal', 'a disponibilidade semanal está incorreta.', 'Marque ou desmarque o horário correspondente.');
         }
     }
     for (const {key,label} of collections.filter(x => x.key !== 'offers') as {key:'rooms'|'teachers'|'subjects'|'cohorts'|'graduates'|'plans';label:string}[]) {
@@ -121,43 +126,43 @@ export function validate(d: DB) {
     }
     for (const c of d.cohorts) {
         if (!Number.isInteger(c.stage) || c.stage <= 0)
-            validationError('Turmas / etapas — ' + c.name, 'Semestre do curso', 'Semestre inválido: ' + c.stage + '.', 'Informe um número inteiro maior que zero.');
+            validationError('Turmas / etapas — ' + c.name, 'Semestre do curso', 'o semestre da turma está incorreto.', 'Informe um número inteiro maior que zero.');
         if (c.room && !has('rooms', c.room))
             validationError('Turmas / etapas — ' + c.name, 'Sala preferencial', 'A sala "' + c.room + '" não está cadastrada.', 'Selecione uma sala existente ou Automática.');
     }
     for (const o of d.offers) {
         const local = 'Ofertas de disciplinas — ' + display('subjects',o.subject) + ' / ' + display('cohorts',o.cohort) + ' (ID ' + o.id + ')';
         if (!has('subjects',o.subject))
-            validationError(local,'Disciplina','A disciplina "' + o.subject + '" não existe.', 'Selecione uma disciplina cadastrada.');
+            validationError(local,'Disciplina','a disciplina selecionada não está cadastrada.', 'Selecione uma disciplina cadastrada.');
         if (!has('teachers',o.teacher))
-            validationError(local,'Professor','O professor "' + o.teacher + '" não existe.', 'Selecione um professor cadastrado.');
+            validationError(local,'Professor','o professor selecionado não está cadastrado.', 'Selecione um professor cadastrado.');
         if (!has('cohorts',o.cohort))
-            validationError(local,'Turma','A turma "' + o.cohort + '" não existe.', 'Selecione uma turma cadastrada.');
+            validationError(local,'Turma','a turma selecionada não está cadastrada.', 'Selecione uma turma cadastrada.');
         if (!d.periods.includes(o.period))
             validationError(local,'Período letivo','O período "' + o.period + '" não existe.', 'Selecione um período letivo cadastrado.');
         if (!Number.isInteger(o.load) || o.load <= 0 || o.load > 30)
-            validationError(local,'Aulas semanais de 50 minutos','Carga inválida: ' + String(o.load) + ' aula(s) por semana.', 'Informe um número inteiro de 1 a 30.');
+            validationError(local,'Aulas semanais de 50 minutos','a carga semanal deve ter de 1 a 30 aulas.', 'Informe um número inteiro de 1 a 30.');
     }
     for (const c of d.cohorts) for (const p of d.periods) {
         const offers = d.offers.filter(o => o.cohort === c.id && o.period === p);
         const total = offers.reduce((n, o) => n + o.load, 0);
         if (total > 30)
-            validationError('Turmas / etapas — ' + c.name + ' · ' + p, 'Aulas semanais de 50 minutos', 'A turma tem ' + total + ' aulas por semana, mas o limite é 30 (' + offers.map(o => display('subjects',o.subject) + ': ' + o.load).join('; ') + ').', 'Reduza a carga de uma das ofertas dessa turma até o total ser no máximo 30.');
+            validationError('Turmas / etapas — ' + c.name + ' · ' + p, 'Aulas semanais de 50 minutos', 'a turma tem ' + total + ' aulas por semana. O limite é 30.', 'Reduza a carga de uma das ofertas dessa turma até o total ser no máximo 30.');
     }
     for (const g of d.graduates) {
         const local = 'Formandos — ' + g.name;
         if (typeof g.active !== 'boolean')
-            validationError(local,'Ativo','O estado de participação é inválido.', 'Marque ou desmarque a opção de considerar no planejamento.');
+            validationError(local,'Ativo','o estado do formando está incorreto.', 'Marque ou desmarque a opção de considerar no planejamento.');
         if (!d.periods.includes(g.period))
             validationError(local,'Período letivo','O período "' + g.period + '" não existe.', 'Vincule o formando a um período cadastrado.');
         if (!Array.isArray(g.subjects))
-            validationError(local,'Disciplinas necessárias','A lista de disciplinas está inválida.', 'Selecione as disciplinas necessárias novamente.');
+            validationError(local,'Disciplinas necessárias','a lista de disciplinas está incorreta.', 'Selecione as disciplinas necessárias novamente.');
         for (const subject of g.subjects) {
             if (!has('subjects',subject))
-                validationError(local,'Disciplinas necessárias','Disciplina não cadastrada (ID ' + subject + ').', 'Remova a referência ou cadastre a disciplina.');
+                validationError(local,'Disciplinas necessárias','a disciplina ' + subject + ' não está cadastrada.', 'Remova a referência ou cadastre a disciplina.');
         }
         if (new Set(g.subjects).size !== g.subjects.length)
-            validationError(local,'Disciplinas necessárias','Uma disciplina foi selecionada mais de uma vez.', 'Deixe cada disciplina marcada apenas uma vez.');
+            validationError(local,'Disciplinas necessárias','a mesma disciplina foi selecionada duas vezes.', 'Deixe cada disciplina marcada apenas uma vez.');
     }
     for (const p of d.plans) {
         const local = 'Quadro de horários — ' + p.name;
@@ -168,24 +173,24 @@ export function validate(d: DB) {
         const ids = new Set<string>();
         for (const l of p.lessons) {
             const offer = d.offers.find(o => o.id === l?.offer);
-            const row = local + ' — ' + (offer ? display('subjects',offer.subject) : 'oferta ID ' + String(l?.offer)) + ' · ' + (l ? lessonWhen(l.day,l.slot) : 'sem horário');
+            const row = local + ' — ' + (offer ? display('subjects',offer.subject) : 'disciplina desconhecida');
             if (!l || typeof l.id !== 'string' || !/^[A-Za-z0-9_-]{1,120}$/.test(l.id))
                 validationError(row,'Identificador da aula','Aula inválida: identificador ausente ou incorreto.', 'Restaure um backup íntegro.');
             if (ids.has(l.id))
                 validationError(row,'Identificador da aula','Aula duplicada (ID ' + l.id + ').', 'Remova a duplicação no arquivo de dados.');
             ids.add(l.id);
             if (!offer || offer.period !== p.period)
-                validationError(row,'Oferta','A aula referencia uma oferta ausente ou de outro período.', 'Verifique a oferta e o período da grade.');
+                validationError(row,'Oferta','a disciplina não tem uma oferta válida neste período.', 'Verifique a oferta e o período da grade.');
             if (!has('rooms',l.room))
-                validationError(row,'Sala','A sala "' + l.room + '" não existe.', 'Selecione uma sala cadastrada para a aula.');
+                validationError(row,'Sala','a sala selecionada não está cadastrada.', 'Selecione uma sala cadastrada para a aula.');
             if (!Number.isInteger(l.day) || l.day < 0 || l.day >= 5)
-                validationError(row,'Dia','Dia da semana inválido (' + l.day + ').', 'Selecione um dia entre segunda e sexta.');
+                validationError(row,'Dia','o dia da aula está incorreto.', 'Selecione um dia entre segunda e sexta.');
             if (!Number.isInteger(l.slot) || l.slot < 0 || l.slot >= 6)
-                validationError(row,'Horário','Índice de horário inválido (' + l.slot + ').', 'Use um dos seis horários válidos da grade.');
+                validationError(row,'Horário','o horário da aula está incorreto.', 'Use um dos seis horários válidos da grade.');
             if (!Number.isInteger(l.length) || l.length < 1 || l.length > 2 || l.slot + l.length > 6)
-                validationError(row,'Duração','Aula inválida: duração ou posicionamento fora dos seis horários.', 'Use uma aula simples ou dupla dentro do mesmo dia.');
+                validationError(row,'Duração','a duração da aula está incorreta.', 'Use uma aula simples ou dupla dentro do mesmo dia.');
             if (typeof l.locked !== 'boolean')
-                validationError(row,'Bloco fixo','O estado de travamento está inválido.', 'Restaure uma grade válida ou recrie a aula.');
+                validationError(row,'Bloco fixo','o cadeado da aula está com um valor incorreto.', 'Restaure uma grade válida ou recrie a aula.');
         }
     }
 }
@@ -195,37 +200,46 @@ export function hardIssues(d: DB, lessons: Lesson[], focus?: Set<string>): strin
     for (let i = 0; i < lessons.length; i++) {
         const a = lessons[i], o = d.offers.find(x => x.id === a.offer);
         if (!o) {
-            issues.add('Aula ' + a.id + ': oferta inexistente (ID ' + a.offer + '). Confira a oferta cadastrada.');
+            issues.add('Uma aula está ligada a uma disciplina que não está cadastrada.');
             continue;
         }
         const r = d.rooms.find(x => x.id === a.room), t = d.teachers.find(x => x.id === o.teacher);
         if (!r || !t) {
-            issues.add('Aula de ' + (d.subjects.find(x => x.id === o.subject)?.name || o.subject) + ' em ' + lessonWhen(a.day,a.slot) + ': ' + (!r ? 'sala ID ' + a.room + ' não cadastrada' : 'professor ID ' + o.teacher + ' não cadastrado') + '. Corrija o cadastro relacionado.');
+            issues.add((d.subjects.find(x => x.id === o.subject)?.name || o.subject) + ': ' + (!r ? 'a sala não está cadastrada.' : 'o professor não está cadastrado.'));
             continue;
         }
         if ((!focus || focus.has(a.id)) && (a.day < 0 || a.day > 4 || a.slot < 0 || a.slot + a.length > 6 || (a.length === 2 && a.slot % 2 !== 0)))
-            issues.add('Aula de ' + (d.subjects.find(x => x.id === o.subject)?.name || o.subject) + ' em ' + lessonWhen(a.day,a.slot) + ': a dupla deve começar às 07:30, 09:20 ou 11:00.');
+            issues.add((d.subjects.find(x => x.id === o.subject)?.name || o.subject) + ': aula dupla fora de um bloco permitido.');
         for (let k = 0; k < a.length && (!focus || focus.has(a.id)); k++) {
             if (!r.available[a.day * 6 + a.slot + k])
-                issues.add('Sala indisponível: ' + r.name + ' em ' + lessonWhen(a.day,a.slot+k) + ' (disciplina ' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + '). Marque o horário na disponibilidade da sala ou escolha outro destino.');
+                issues.add('Sala indisponível: ' + r.name + ' para ' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + '.');
             if (!t.available[a.day * 6 + a.slot + k])
-                issues.add('Professor indisponível: ' + t.name + ' em ' + lessonWhen(a.day,a.slot+k) + ' (disciplina ' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + '). Ajuste a disponibilidade do professor ou escolha outro horário.');
+                issues.add('Professor indisponível: ' + t.name + ' para ' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + '.');
         }
         for (let j = 0; j < i; j++) {
             const b = lessons[j], ob = d.offers.find(x => x.id === b.offer);
             if (!ob || !overlap(a, b) || (focus && !focus.has(a.id) && !focus.has(b.id)))
                 continue;
             if (a.room === b.room)
-                issues.add('Sala ocupada: ' + r.name + ' em ' + lessonWhen(a.day,Math.max(a.slot,b.slot)) + ' por ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '. Escolha outra sala ou horário.');
+                issues.add('Sala ocupada: ' + r.name + ' já tem ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + ' nesse horário.');
             if (o.teacher === ob.teacher)
-                issues.add('Professor em outra aula: ' + t.name + ' em ' + lessonWhen(a.day,Math.max(a.slot,b.slot)) + ' (' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '). Escolha outro horário.');
+                issues.add('Professor ocupado: ' + t.name + ' já está dando aula de ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '.');
             if (o.cohort === ob.cohort)
-                issues.add('Choque na turma: ' + d.cohorts.find(x => x.id === o.cohort)?.name + ' em ' + lessonWhen(a.day,Math.max(a.slot,b.slot)) + ' (' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ' e ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '). Mova uma das aulas.');
+                issues.add('Choque na turma: ' + d.cohorts.find(x => x.id === o.cohort)?.name + ' tem ' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ' e ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + ' ao mesmo tempo.');
         }
     }
     return [...issues];
 }
-export function completeness(d: DB, p: Plan) { return d.offers.filter(o => o.period === p.period).filter(o => p.lessons.filter(l => l.offer === o.id).reduce((n, l) => n + l.length, 0) !== o.load).map(o => 'Carga incompleta: ' + d.subjects.find(s => s.id === o.subject)?.name + ' / ' + d.cohorts.find(c => c.id === o.cohort)?.name); }
+export function completeness(d: DB, p: Plan) {
+    return d.offers.filter(o => o.period === p.period).flatMap(o => {
+        const given = p.lessons.filter(l => l.offer === o.id).reduce((n, l) => n + l.length, 0);
+        const difference = o.load - given;
+        if (!difference) return [];
+        const title = (d.subjects.find(s => s.id === o.subject)?.name || 'Disciplina') +
+            ' (' + (d.cohorts.find(x => x.id === o.cohort)?.name || 'Turma') + ')';
+        return [title + ': ' + (difference > 0 ? 'faltam ' + difference + ' aulas na grade.' : 'há ' + (-difference) + ' aulas a mais na grade.')];
+    });
+}
 function lessonMask(l: Lesson): number { return ((1 << l.length) - 1) << (l.day * 6 + l.slot); }
 function bitCount(x: number): number { let n = 0; while (x) {
     x &= x - 1;
@@ -264,12 +278,29 @@ export function graduateReport(d: DB, p: Plan) {
         choose(0, [], 0);
         const fulfilled = new Set(best.map(id => offers.find(o => o.id === id)!.subject));
         const missingIds = g.subjects.filter(id => !fulfilled.has(id));
-        return { id: g.id, name: g.name, offers: best, ok: best.length === g.subjects.length, limited: limited && best.length !== g.subjects.length, missingIds, missing: missingIds.map(id => names.get(id)!), reasons: missingIds.map(id => { const candidates = offers.filter(o => o.subject === id); return names.get(id) + ': ' + (!candidates.length ? 'sem oferta no período' : !groups.find(x => x.subject === id)!.choices.length ? 'carga ainda incompleta na grade' : 'sem encaixe na combinação encontrada'); }) };
+        const selected = best.map(id => offers.find(o => o.id === id)!).filter(Boolean);
+        const reasons = missingIds.map(subject => {
+            const subjectName = names.get(subject) || 'Disciplina';
+            const offered = offers.filter(o => o.subject === subject);
+            const choices = groups.find(x => x.subject === subject)?.choices || [];
+            if (!offered.length) return subjectName + ': não é oferecida neste período.';
+            if (!choices.length) return subjectName + ': faltam aulas dessa disciplina na grade.';
+            // Nomes obtidos dos horários reais das ofertas completas e escolhidas.
+            // Uma disciplina só é citada quando de fato coincide com alguma oferta disponível.
+            const conflicts = [...new Set(choices.flatMap(choice => selected.filter(other =>
+                !!((masks.get(choice.id) || 0) & (masks.get(other.id) || 0)))
+                .map(other => names.get(other.subject) || other.subject)))];
+            if (conflicts.length)
+                return subjectName + ': coincide com as aulas de ' +
+                    (conflicts.length === 1 ? conflicts[0] : conflicts.slice(0, -1).join(', ') + ' e ' + conflicts.at(-1)) + '.';
+            return subjectName + ': não foi possível confirmar um horário sem conflito.';
+        });
+        return { id: g.id, name: g.name, offers: best, ok: best.length === g.subjects.length, limited: limited && best.length !== g.subjects.length, missingIds, missing: missingIds.map(id => names.get(id)!), reasons };
     });
 }
 export function graduateChanges(d: DB, before: Plan, after: Plan): string[] {
     const old = new Map(graduateReport(d, before).map(r => [r.id, r]));
-    return graduateReport(d, after).filter(r => { const b = old.get(r.id)!; return !r.ok && (r.limited || r.offers.length < b.offers.length || r.missingIds.some(id => !b.missingIds.includes(id))); }).map(r => r.name + ': ' + (r.limited ? 'verificação inconclusiva; confira a grade individual. ' : '') + 'pendências após a mudança: ' + r.missing.join(', '));
+    return graduateReport(d, after).filter(r => { const b = old.get(r.id)!; return !r.ok && (r.limited || r.offers.length < b.offers.length || r.missingIds.some(id => !b.missingIds.includes(id))); }).map(r => r.name + ': ' + r.reasons.join('; '));
 }
 export function quality(d: DB, p: Plan) {
     const reports = graduateReport(d, p);
