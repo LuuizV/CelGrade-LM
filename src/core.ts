@@ -195,32 +195,32 @@ export function hardIssues(d: DB, lessons: Lesson[], focus?: Set<string>): strin
     for (let i = 0; i < lessons.length; i++) {
         const a = lessons[i], o = d.offers.find(x => x.id === a.offer);
         if (!o) {
-            issues.add('Oferta inexistente');
+            issues.add('Aula ' + a.id + ': oferta inexistente (ID ' + a.offer + '). Confira a oferta cadastrada.');
             continue;
         }
         const r = d.rooms.find(x => x.id === a.room), t = d.teachers.find(x => x.id === o.teacher);
         if (!r || !t) {
-            issues.add('Sala ou professor inexistente');
+            issues.add('Aula de ' + (d.subjects.find(x => x.id === o.subject)?.name || o.subject) + ' em ' + lessonWhen(a.day,a.slot) + ': ' + (!r ? 'sala ID ' + a.room + ' não cadastrada' : 'professor ID ' + o.teacher + ' não cadastrado') + '. Corrija o cadastro relacionado.');
             continue;
         }
         if ((!focus || focus.has(a.id)) && (a.day < 0 || a.day > 4 || a.slot < 0 || a.slot + a.length > 6 || (a.length === 2 && a.slot % 2 !== 0)))
-            issues.add('A dupla deve ocupar um bloco completo: 07:30, 09:20 ou 11:00');
+            issues.add('Aula de ' + (d.subjects.find(x => x.id === o.subject)?.name || o.subject) + ' em ' + lessonWhen(a.day,a.slot) + ': a dupla deve começar às 07:30, 09:20 ou 11:00.');
         for (let k = 0; k < a.length && (!focus || focus.has(a.id)); k++) {
             if (!r.available[a.day * 6 + a.slot + k])
-                issues.add('Sala indisponível: ' + r.name);
+                issues.add('Sala indisponível: ' + r.name + ' em ' + lessonWhen(a.day,a.slot+k) + ' (disciplina ' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + '). Marque o horário na disponibilidade da sala ou escolha outro destino.');
             if (!t.available[a.day * 6 + a.slot + k])
-                issues.add('Professor indisponível: ' + t.name);
+                issues.add('Professor indisponível: ' + t.name + ' em ' + lessonWhen(a.day,a.slot+k) + ' (disciplina ' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + '). Ajuste a disponibilidade do professor ou escolha outro horário.');
         }
         for (let j = 0; j < i; j++) {
             const b = lessons[j], ob = d.offers.find(x => x.id === b.offer);
             if (!ob || !overlap(a, b) || (focus && !focus.has(a.id) && !focus.has(b.id)))
                 continue;
             if (a.room === b.room)
-                issues.add('Sala ocupada: ' + r.name);
+                issues.add('Sala ocupada: ' + r.name + ' em ' + lessonWhen(a.day,Math.max(a.slot,b.slot)) + ' por ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '. Escolha outra sala ou horário.');
             if (o.teacher === ob.teacher)
-                issues.add('Professor em outra aula: ' + t.name);
+                issues.add('Professor em outra aula: ' + t.name + ' em ' + lessonWhen(a.day,Math.max(a.slot,b.slot)) + ' (' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '). Escolha outro horário.');
             if (o.cohort === ob.cohort)
-                issues.add('Choque na turma: ' + d.cohorts.find(x => x.id === o.cohort)?.name);
+                issues.add('Choque na turma: ' + d.cohorts.find(x => x.id === o.cohort)?.name + ' em ' + lessonWhen(a.day,Math.max(a.slot,b.slot)) + ' (' + (d.subjects.find(x=>x.id===o.subject)?.name || o.subject) + ' e ' + (d.subjects.find(x=>x.id===ob.subject)?.name || ob.subject) + '). Mova uma das aulas.');
         }
     }
     return [...issues];
