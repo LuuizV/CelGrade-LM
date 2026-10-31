@@ -302,7 +302,7 @@ async function applyDrop(cell: HTMLElement) {
 async function renamePlan() { const p = plan(); if (!p)
     return; renamingPlan = p.id; $('#edit-title').textContent = 'Renomear alternativa'; $('#error').textContent = ''; $('#fields').innerHTML = `<label>Nome da alternativa<input name="name" required maxlength="200" value="${esc(p.name)}"></label>`; $<HTMLDialogElement>('#editor').showModal(); }
 async function undoMove(cohort: string) {
-    const index=undo.findLastIndex(x=>x.cohort===cohort&&x.plan.id===planId);
+    const index=undo.map((x,i)=>x.cohort===cohort&&x.plan.id===planId?i:-1).filter(i=>i>=0).at(-1) ?? -1;
     if(index<0){notice('Não há movimento dessa turma para desfazer.');return;}
     const n=structuredClone(db), current=n.plans.find(p=>p.id===planId);
     if(!current)return;
