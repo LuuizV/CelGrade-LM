@@ -14,9 +14,9 @@ test('indicadores da grade e ícones de navegação permanecem acessíveis',asyn
  const a=await app();try{
   const {w,$}=a;
   const cards=[...w.document.querySelectorAll('.metrics .metric-card')];
-  assert.equal(cards.length,4);
+  assert.equal(cards.length,3);
   assert.deepEqual(cards.map(c=>c.querySelector('.metric-label')?.textContent),[
-   'Aulas semanais','Formandos atendidos','Blocos fixos','Janelas nas turmas'
+   'Aulas semanais','Blocos fixos','Janelas nas turmas'
   ]);
   assert(cards.every(c=>c.querySelector('.metric-icon svg[aria-hidden="true"]')));
   assert.equal(w.document.querySelectorAll('nav button[data-page] .ui-icon').length,10);
@@ -177,4 +177,27 @@ test('0.9.2: salas mostram módulo em coluna separada',async()=>{
   $('#form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();
   assert.equal(store.read().rooms[0].module,'Módulo I');
  }finally{await a.close()}
+});
+
+test('0.9.4: painel dos formandos, graficos e janelas expansíveis',async()=>{
+ const a=await app();try{const {w,$}=a;
+  assert($('#graduate-dashboard-body'));
+  assert($('#chart-bar'));assert($('#chart-pie'));
+  assert($('#gap-details'));
+  $('#chart-pie').click();assert($('.demand-pie'));
+  $('#chart-bar').click();assert($('.demand-bars'));
+  $('#toggle-graduate-dashboard').click();assert.equal($('#graduate-dashboard-body').hidden,true);
+  $('#toggle-graduate-dashboard').click();assert.equal($('#graduate-dashboard-body').hidden,false);
+ }finally{await a.close();}
+});
+test('0.9.4: cartões por formando, professor e oferta com busca',async()=>{
+ const a=await app();try{const {w,$}=a;
+  for(const page of ['graduates','teachers','offers']){
+   $('[data-page="'+page+'"]').click();
+   assert(w.document.querySelectorAll('.record-card').length>0);
+   const query=$('#record-search');query.value='informacao sem correspondencia';
+   query.dispatchEvent(new w.Event('input',{bubbles:true}));
+   assert.equal(w.document.querySelectorAll('.record-card:not([hidden])').length,0);
+  }
+ }finally{await a.close();}
 });
