@@ -7,8 +7,9 @@
   "scripts": {
     "build": "tsc && node scripts/build-web.cjs",
     "start": "npm run build && electron .",
-    "test": "npm run build && node --test tests/core.cjs tests/regression.cjs tests/dom.cjs tests/updates.cjs tests/changelog.cjs",
-    "package:win": "npm run build && node scripts/generate-icon.cjs && electron-builder --win nsis --x64 --publish never"
+    "test": "npm run build && node --test tests/core.cjs tests/regression.cjs tests/dom.cjs tests/updates.cjs tests/changelog.cjs tests/trace.cjs",
+    "package:win": "npm run build && node scripts/generate-icon.cjs && electron-builder --win nsis --x64 --publish never",
+    "package:lab": "npm run build && node scripts/generate-icon.cjs && electron-builder --config lab/builder.json --win portable --x64 --publish never"
   },
   "devDependencies": {
     "@electron/packager": "^19.0.0",
@@ -35,7 +36,12 @@
       "package.json"
     ],
     "asar": true,
-    "extraResources": [{"from": "build/icon.ico", "to": "icon.ico"}],
+    "extraResources": [
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
     "npmRebuild": false,
     "win": {
       "target": [
