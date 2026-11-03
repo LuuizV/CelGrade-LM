@@ -6,7 +6,7 @@ import type { Store } from './storage';
 
 type State = {text:string;ready:boolean;available:boolean;checking:boolean;downloading:boolean;version:string;percent:number;transferred:number;total:number;bytesPerSecond:number};
 export function setupUpdates(win: BrowserWindow, store: Store) {
-    const enabled=false; // O laboratório não consulta o feed da edição estável.
+    const enabled=process.env.CELGRADE_LAB_MODE !== '1' && app.isPackaged && process.platform==='win32';
     let checking=false,downloading=false,ready=false,installing=false,available=false,version='';
     let state:State={text:'Versão '+app.getVersion(),ready:false,available:false,checking:false,downloading:false,version:'',percent:0,transferred:0,total:0,bytesPerSecond:0};
     const send=(text:string,progress?:Partial<State>)=>{
