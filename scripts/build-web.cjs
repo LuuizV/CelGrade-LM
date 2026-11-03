@@ -14,15 +14,19 @@ fs.writeFileSync('web/core.js','var Core={};(function(exports){\n'+fs.readFileSy
 fs.writeFileSync('web/renderer.js',history+'(function(exports){\n'+fs.readFileSync('dist/renderer.js','utf8')+'\n})({});');
 fs.writeFileSync('web/worker.js',`importScripts('core.js');
 onmessage=e=>{
- const {db,period,base,seed}=e.data;
+ const {db,period,base,seed,trace}=e.data;
+ const pending=[];
+ const flush=()=>{if(pending.length)postMessage({traceBatch:pending.splice(0)});};
  try{
   const seen=new Set(db.plans.filter(p=>p.period===period).map(Core.signature));let best,quality,candidates=0,lastError;const deadline=Date.now()+11000;
   function better(a,b){return !b||a.attended>b.attended||(a.attended===b.attended&&(a.fulfilled>b.fulfilled||(a.fulfilled===b.fulfilled&&(a.gaps<b.gaps||(a.gaps===b.gaps&&a.roomChanges<b.roomChanges)))));}
   for(let i=0;i<6&&Date.now()<deadline;i++){
    postMessage({progress:'Comparando opção '+(i+1)+' de até 6…'});
-   try{const p=Core.generate(db,period,base,seed+i*7919),sig=Core.signature(p);if(seen.has(sig))continue;seen.add(sig);candidates++;const q=Core.quality(db,p);if(better(q,quality)){best=p;quality=q;}}
+   try{const p=Core.generate(db,period,base,seed+i*7919,trace?(ev)=>{
+     pending.push({...ev,attempt:i+1});if(pending.length>=8)flush();
+   }:undefined),sig=Core.signature(p);flush();if(seen.has(sig))continue;seen.add(sig);candidates++;const q=Core.quality(db,p);if(better(q,quality)){best=p;quality=q;}}
    catch(error){lastError=error.message;if(!lastError.includes('Limite'))break;}
   }
-  if(!best)throw Error(lastError||'Nenhuma alternativa diferente foi encontrada nesta tentativa. As anteriores foram preservadas.');postMessage({plan:best,candidates});
- }catch(error){postMessage({error:error.message});}
+  if(!best)throw Error(lastError||'Nenhuma alternativa diferente foi encontrada nesta tentativa. As anteriores foram preservadas.');flush();postMessage({plan:best,candidates});
+ }catch(error){flush();postMessage({error:error.message});}
 };`);
