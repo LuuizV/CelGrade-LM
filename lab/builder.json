@@ -1,0 +1,28 @@
+{
+  "appId": "br.com.celgrade.lm.laboratorio",
+  "productName": "CelGrade LM Laboratorio",
+  "directories": {
+    "output": "lab-output"
+  },
+  "files": [
+    "dist/**/*.js",
+    "web/**/*",
+    "package.json"
+  ],
+  "asar": true,
+  "extraResources": [
+    {
+      "from": "build/icon.ico",
+      "to": "icon.ico"
+    }
+  ],
+  "npmRebuild": false,
+  "win": {
+    "target": [
+      "portable"
+    ],
+    "artifactName": "CelGrade-LM-Laboratorio-Arvore-${version}.${ext}",
+    "signAndEditExecutable": true,
+    "icon": "build/icon.ico"
+  }
+}
