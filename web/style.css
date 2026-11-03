@@ -519,3 +519,6 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
    filter:drop-shadow(0 1px 1px #0002);
  }
 }
+
+.delete-action:disabled{opacity:.45;cursor:not-allowed}
+.delete-action:disabled:hover{background:#fff2ef}

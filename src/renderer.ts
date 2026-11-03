@@ -508,11 +508,12 @@ function renderList() {
             let details='',extra='';
             if('available' in x){details=chips([x.available.filter(Boolean).length+' horários disponíveis']);if(key==='rooms')extra='<td>'+chips([(x as import('./core').Resource).module||'Sem módulo'])+'</td>';}
             else if('stage' in x)details=chips([x.stage+'º semestre',x.room?name('rooms',x.room):'Sala automática']);
+            else if(key==='subjects'){const code=(x as import('./core').Subject).code;extra='<td>'+(code?'<span class="record-chip">'+esc(code)+'</span>':'<span class="record-chip chip-muted" title="Edite a disciplina para informar o código.">Sem código</span>')+'</td>';}
             return '<tr><td><span class="record-label">'+(navIcons[key]||'')+esc(label)+'</span></td>'+extra+'<td>'+details+'</td>'+
             '<td class="record-actions"><button class="edit-action" data-edit="'+esc(x.id)+'">'+navIcons.edit+'Editar</button> <button class="delete-action" data-delete="'+esc(x.id)+'">'+navIcons.delete+'Excluir</button></td></tr>';
         }).join('');
         $('#content').innerHTML='<div class="panel records-panel"><div class="actions">'+button('add','+ Adicionar','primary')+
-        '<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><div class="record-table-scroll"><table><thead><tr><th>'+title+'</th>'+(key==='rooms'?'<th>Módulo</th>':'')+
+        '<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><div class="record-table-scroll"><table><thead><tr><th>'+title+'</th>'+(key==='rooms'?'<th>Módulo</th>':key==='subjects'?'<th>Código</th>':'')+
         '<th>Detalhes</th><th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div>'+(rows.length?'':'<p class="muted">Nenhum cadastro ainda.</p>')+'</div>';
     }
     $('#add').onclick=()=>edit(null);
@@ -535,6 +536,8 @@ function edit(id: string | null) {
         name: string;
     }[], value: string) => `<label>${title}<select name="${n}" ${n === 'room' ? '' : 'required'}>${options(items, value)}</select></label>`;
     if (page !== 'offers') html += field('name', 'Nome', x.name || '');
+    if (page === 'subjects')
+        html += `<label>Código da disciplina<input name="code" type="text" required maxlength="20" autocomplete="off" placeholder="Ex.: MAT101" value="${esc(x.code || '')}"></label><p class="muted">${esc(Core.SUBJECT_CODE_HELP)}</p>`;
     if (page === 'rooms') html += field('module', 'Módulo', x.module || '');
     if (page === 'rooms' || page === 'teachers') {
         html += '<p>Disponibilidade semanal — marque quando pode receber aulas</p><div class="actions"><button type="button" id="all">Marcar todos</button><button type="button" id="none">Desmarcar todos</button></div><table class="availability"><tr><th>Horário</th>' + days.map(d => '<th>' + d + '</th>').join('') + '</tr>' + Core.times.map((t, slot) => '<tr><th>' + t + '</th>' + days.map((d, day) => `<td><input type="checkbox" name="available" aria-label="${d} ${t}" value="${day * 6 + slot}" ${(x.available || Array(30).fill(1))[day * 6 + slot] ? 'checked' : ''}></td>`).join('') + '</tr>').join('') + '</table>';
@@ -543,9 +546,9 @@ function edit(id: string | null) {
     if (page === 'cohorts')
         html += field('stage', 'Semestre do curso', x.stage || 1, 'number') + select('room', 'Sala preferencial', [{ id: '', name: 'Automática' }, ...db.rooms], x.room || '');
     if (page === 'offers')
-        html += select('subject', 'Disciplina', db.subjects, x.subject) + select('teacher', 'Professor', db.teachers, x.teacher) + select('cohort', 'Turma', db.cohorts, x.cohort) + field('load', 'Aulas semanais de 50 minutos', x.load || 2, 'number') + `<p class="muted">Oferta para ${period}. A disciplina pode ter outras ofertas em outras turmas.</p>`;
+        html += select('subject', 'Disciplina', db.subjects.map(s => ({ id: s.id, name: Core.subjectLabel(s) })), x.subject) + select('teacher', 'Professor', db.teachers, x.teacher) + select('cohort', 'Turma', db.cohorts, x.cohort) + field('load', 'Aulas semanais de 50 minutos', x.load || 2, 'number') + `<p class="muted">Oferta para ${period}. A disciplina pode ter outras ofertas em outras turmas.</p>`;
     if (page === 'graduates')
-        html += `<label><input type="checkbox" name="active" ${x.active !== false ? 'checked' : ''}> Considerar no planejamento de ${period}</label><h3>Disciplinas necessárias</h3><div class="checks">${db.subjects.map(s => `<label><input type="checkbox" name="subject" value="${s.id}" ${(x.subjects || []).includes(s.id) ? 'checked' : ''}> ${esc(s.name)}</label>`).join('')}</div>`;
+        html += `<label><input type="checkbox" name="active" ${x.active !== false ? 'checked' : ''}> Considerar no planejamento de ${period}</label><h3>Disciplinas necessárias</h3><div class="checks">${db.subjects.map(s => `<label><input type="checkbox" name="subject" value="${s.id}" ${(x.subjects || []).includes(s.id) ? 'checked' : ''}> ${esc(Core.subjectLabel(s))}</label>`).join('')}</div>`;
     $('#fields').innerHTML = html;
     if ($('#all'))
         $('#all').onclick = () => document.querySelectorAll<HTMLInputElement>('[name=available]').forEach(x => x.checked = true);
@@ -591,6 +594,13 @@ $('#form').onsubmit = async (e) => { e.preventDefault(); if (renamingPlan) {
     x.subjects = f.getAll('subject');
     x.active = f.has('active');
     x.period = old?.period || period;
+} if (page === 'subjects') {
+    const code = Core.normalizeSubjectCode(f.get('code'));
+    if (!code) { $('#error').textContent = 'Informe o código da disciplina.'; return; }
+    if (!Core.SUBJECT_CODE_PATTERN.test(code)) { $('#error').textContent = 'Código inválido. ' + Core.SUBJECT_CODE_HELP; return; }
+    const other = rows.find(r => r.id !== x.id && Core.normalizeSubjectCode(r.code) === code);
+    if (other) { $('#error').textContent = 'O código ' + code + ' já está em uso pela disciplina ' + other.name + '.'; return; }
+    x.code = code;
 } if (old)
     rows[rows.indexOf(old)] = x;
 else
@@ -605,8 +615,25 @@ catch (err) {
     $('#error').textContent = explainError(err, $('#edit-title').textContent || 'Cadastro');
 } };
 $('#cancel').onclick = () => $<HTMLDialogElement>('#editor').close();
+async function deleteAcademicPeriod(target: string) {
+    if (saving || busy) return;
+    if (db.periods.length < 2) { notice('É preciso manter ao menos um período letivo.', true); return; }
+    const i = Core.periodImpact(db, target);
+    const message = 'Excluir o período ' + target + '? Serão removidos junto com ele: ' + i.offers + ' oferta(s), ' + i.graduates + ' formando(s) e ' + i.plans + ' alternativa(s) de grade. ' +
+        'Salas, professores, disciplinas e turmas são mantidos. Um ponto de recuperação é criado antes, em Dados e backup > Histórico de recuperação.';
+    if (!await confirmInApp('Excluir período letivo', message, 'Excluir período', true)) return;
+    try {
+        const next = Core.deletePeriod(db, target);
+        await save(next, 'Antes de excluir o período ' + target);
+        if (period === target || !db.periods.includes(period)) period = db.periods[0];
+        localStorage.setItem('celgrade-active-period', period);
+        planId = ''; undo = [];
+        render();
+        notice('Período ' + target + ' excluído.');
+    } catch (e) { notice(explainError(e, 'Períodos letivos'), true); }
+}
 function renderPeriods() {
-    const items=db.periods.map(p=>'<div class="period-entry"><span class="period-entry-icon" aria-hidden="true">'+navIcons.periods+'</span><div class="period-entry-copy"><strong>'+esc(p)+'</strong><small>'+(p.endsWith('.1')?'1º semestre':'2º semestre')+' de '+esc(p.slice(0,4))+'</small></div>'+(p===period?'<span class="period-active-label">Em uso</span>':'<button type="button" data-use-period="'+esc(p)+'">Selecionar</button>')+'</div>').join('');
+    const items=db.periods.map(p=>'<div class="period-entry"><span class="period-entry-icon" aria-hidden="true">'+navIcons.periods+'</span><div class="period-entry-copy"><strong>'+esc(p)+'</strong><small>'+(p.endsWith('.1')?'1º semestre':'2º semestre')+' de '+esc(p.slice(0,4))+'</small></div>'+(p===period?'<span class="period-active-label">Em uso</span>':'<button type="button" data-use-period="'+esc(p)+'">Selecionar</button>')+'<button type="button" class="delete-action" data-delete-period="'+esc(p)+'"'+(db.periods.length<2?' disabled title="É preciso manter ao menos um período letivo."':'')+'>'+navIcons.delete+'Excluir</button></div>').join('');
     $('#content').innerHTML='<section class="periods-page"><div class="period-cards">'+
       '<div class="panel period-card"><div class="period-card-heading"><span class="period-card-icon">'+navIcons.periods+'</span><div><h2>Período em uso</h2><p class="muted">Aplicado às demais abas</p></div></div><div id="period-mount"></div><p class="period-current">Período selecionado: <strong>'+esc(period)+'</strong></p></div>'+
       '<div class="panel period-card"><div class="period-card-heading"><span class="period-card-icon">'+navIcons.add+'</span><div><h2>Cadastrar novo período</h2><p class="muted">Formato: ano e semestre</p></div></div><label for="new-period">Novo período</label><input id="new-period" placeholder="Ex.: 2027.1" pattern="[0-9]{4}\\.[12]" inputmode="text"><div class="period-add-actions">'+button('add-period','Adicionar período','primary')+'</div></div>'+
@@ -617,6 +644,7 @@ function renderPeriods() {
         $<HTMLSelectElement>('#period').value=button.dataset.usePeriod!;
         $('#period').dispatchEvent(new Event('change',{bubbles:true}));
     });
+    $$('[data-delete-period]').forEach(b=>b.onclick=()=>void deleteAcademicPeriod(b.dataset.deletePeriod!));
     $('#add-period').onclick=async()=>{
         const value=$<HTMLInputElement>('#new-period').value.trim();
         if(!/^\d{4}\.[12]$/.test(value)){notice('Informe um período válido no formato AAAA.1 ou AAAA.2.',true);return;}

@@ -14,10 +14,10 @@ Em uma migração de versão antiga, exporte um backup JSON antes de instalar a 
 
 Siga esta ordem sugerida:
 
-1. **Períodos letivos:** crie ou escolha o semestre do ano em que trabalhará (por exemplo, `2027.1`).
+1. **Períodos letivos:** crie ou escolha o semestre do ano em que trabalhará (por exemplo, `2027.1`). Um período que não será mais usado pode ser excluído na aba *Períodos letivos*: isso remove também as ofertas, os formandos e as alternativas de grade dele, mas mantém salas, professores, disciplinas e turmas. Antes da exclusão, o app cria um ponto de recuperação em *Dados e backup > Histórico de recuperação*. É preciso manter ao menos um período.
 2. **Salas:** cadastre os ambientes e suas disponibilidades.
 3. **Professores:** cadastre quem leciona e os horários disponíveis.
-4. **Disciplinas e turmas:** registre as disciplinas e as turmas ou etapas do curso.
+4. **Disciplinas e turmas:** registre as disciplinas, cada uma com seu **código** (por exemplo, `MAT101`, único entre as disciplinas), e as turmas ou etapas do curso. Disciplinas antigas, cadastradas antes dessa exigência, aparecem como "Sem código" e devem receber um código ao serem editadas.
 5. **Ofertas:** associe disciplina, professor, turma, período e número de aulas por semana.
 6. **Formandos:** quando necessário, cadastre as disciplinas de que cada estudante precisa no período e ative os que deverão ser considerados na análise.
 
