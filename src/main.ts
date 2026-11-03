@@ -11,11 +11,14 @@ function read(): DB { return store.read(); }
 if (!app.requestSingleInstanceLock())
     app.quit();
 else
-    app.whenReady().then(() => {
+    app.whenReady().then(async () => {
+        const labData = path.join(app.getPath('appData'), 'CelGrade LM Laboratorio');
+        await fs.mkdir(labData, {recursive:true});
+        app.setPath('userData', labData);
         Menu.setApplicationMenu(null);
-        app.setAppUserModelId('br.com.celgrade.lm');
+        app.setAppUserModelId('br.com.celgrade.lm.laboratorio');
         store = new Store(dataPath());
-        win = new BrowserWindow({ width: 1440, height: 920, minWidth: 900, minHeight: 600, title: 'CelGrade LM', icon: app.isPackaged ? path.join(process.resourcesPath,'icon.ico') : path.join(__dirname, '../build/icon.ico'), titleBarStyle: 'hidden', titleBarOverlay: { color: '#135F49', symbolColor: '#FFFFFF', height: 38 }, backgroundColor: '#F6F7F5', webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+        win = new BrowserWindow({ width: 1440, height: 920, minWidth: 900, minHeight: 600, title: 'CelGrade LM — Laboratório de Busca', icon: app.isPackaged ? path.join(process.resourcesPath,'icon.ico') : path.join(__dirname, '../build/icon.ico'), titleBarStyle: 'hidden', titleBarOverlay: { color: '#135F49', symbolColor: '#FFFFFF', height: 38 }, backgroundColor: '#F6F7F5', webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
         win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
         win.webContents.on('will-navigate', e => e.preventDefault());
         ipcMain.handle('release-seen', () => store.seenRelease());
