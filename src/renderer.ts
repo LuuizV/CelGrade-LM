@@ -199,8 +199,9 @@ function renderSchedule() {
     if (!plan())
         planId = plans.at(-1)?.id || '';
     const p = plan();
-    $('#content').innerHTML = `<div class="panel no-print schedule-tools"><div id="schedule-status"></div><div class="actions"><div class="command-group"><small>GERAÇÃO</small><div class="actions">${button('generate','✦ Gerar outra alternativa','primary')}<select id="plans" aria-label="Selecionar alternativa" class="plan-select"><option value="">Selecione uma grade</option>${plans.map(x=>`<option value="${esc(x.id)}" data-status="${planStatus(x)}" ${x.id===planId?'selected':''}>${planStatus(x)==='green'?'🟢':planStatus(x)==='yellow'?'🟡':'🔴'} ${esc(x.name)}</option>`).join('')}</select>${button('rename-plan','Renomear')}${button('cancel-generation','Cancelar busca')}</div></div><div class="command-group"><small>ALTERNATIVAS</small><div class="actions"><div class="delete-pair"><button id="delete-plan" class="delete-action" type="button" title="Excluir apenas a alternativa selecionada">${navIcons.delete}Excluir uma</button><button id="delete-all-plans" class="delete-action" type="button" title="Excluir todas as alternativas deste período">Excluir todas</button></div></div></div><div class="command-group"><small>EXPORTAÇÃO E VISUALIZAÇÃO</small><div class="actions">${button('pdf','Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div></div></div><p class="muted">As alternativas anteriores são preservadas. O cadeado fixa uma aula. Arraste ou clique na aula e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Botão direito altera a sala.</p><div id="schedule-diagnostics"></div>${!db.offers.length ? button('demo','Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
+    $('#content').innerHTML = `<div class="panel no-print schedule-tools"><div id="schedule-status"></div><div class="actions"><div class="command-group"><small>GERAÇÃO</small><div class="actions">${button('generate','✦ Gerar outra alternativa','primary')}<select id="plans" aria-label="Selecionar alternativa" class="plan-select"><option value="">Selecione uma grade</option>${plans.map(x=>`<option value="${esc(x.id)}" data-status="${planStatus(x)}" ${x.id===planId?'selected':''}>${planStatus(x)==='green'?'🟢':planStatus(x)==='yellow'?'🟡':'🔴'} ${esc(x.name)}</option>`).join('')}</select>${button('rename-plan','Renomear')}${button('lab-show','Árvore da busca')}${button('cancel-generation','Cancelar busca')}</div></div><div class="command-group"><small>ALTERNATIVAS</small><div class="actions"><div class="delete-pair"><button id="delete-plan" class="delete-action" type="button" title="Excluir apenas a alternativa selecionada">${navIcons.delete}Excluir uma</button><button id="delete-all-plans" class="delete-action" type="button" title="Excluir todas as alternativas deste período">Excluir todas</button></div></div></div><div class="command-group"><small>EXPORTAÇÃO E VISUALIZAÇÃO</small><div class="actions">${button('pdf','Baixar PDF')}<select id="view"><option value="cohort">Por turma</option><option value="teacher">Por professor</option><option value="graduate">Por formando</option></select></div></div></div><p class="muted">As alternativas anteriores são preservadas. O cadeado fixa uma aula. Arraste ou clique na aula e depois no destino para mover ou trocar blocos da mesma turma. Esc cancela. Botão direito altera a sala.</p><div id="schedule-diagnostics"></div>${!db.offers.length ? button('demo','Carregar exemplo fictício') : ''}</div><div id="report"></div><div id="tables"></div>`;
     $('#generate').onclick = generate;
+    $('#lab-show').onclick = () => window.dispatchEvent(new Event('celgrade:lab-open'));
     $('#cancel-generation').hidden = true;
     $<HTMLSelectElement>('#view').value = selectedView;
     $('#rename-plan').onclick = renamePlan;
@@ -440,16 +441,20 @@ async function generate() {
     const controls = $$('button,select').map(el => ({el, disabled: el.hasAttribute('disabled')}));
     controls.forEach(x => x.el.setAttribute('disabled', 'true'));
     notice('Comparando alternativas e atendimento dos formandos…', false, true);
+    window.dispatchEvent(new CustomEvent('celgrade:lab-start',{detail:{db,period}}));
     const worker = new Worker('worker.js');
     let ended = false;
     const finish = () => { if (ended)
-        return; ended = true; clearTimeout(timer); worker.terminate(); busy = false; controls.forEach(x => { if (!x.disabled) x.el.removeAttribute('disabled'); }); $('#cancel-generation').hidden = true; };
+        return; ended = true; window.dispatchEvent(new Event('celgrade:lab-finish')); clearTimeout(timer); worker.terminate(); busy = false; controls.forEach(x => { if (!x.disabled) x.el.removeAttribute('disabled'); }); $('#cancel-generation').hidden = true; };
     const timer = setTimeout(() => { finish(); notice('Busca interrompida pelo tempo limite. A grade anterior foi preservada.', true); }, 16000);
     $('#cancel-generation').hidden = false;
     $('#cancel-generation').removeAttribute('disabled');
     $('#cancel-generation').onclick = () => { finish(); notice('Busca cancelada. Nenhuma grade foi alterada.'); };
     worker.onmessage = async (e) => { if (ended)
-        return; if (e.data.progress) {
+        return; if (e.data.traceBatch) {
+        window.dispatchEvent(new CustomEvent('celgrade:lab-trace',{detail:e.data.traceBatch}));
+        return;
+    } if (e.data.progress) {
         notice(e.data.progress, false, true);
         return;
     } clearTimeout(timer); $('#cancel-generation').setAttribute('disabled', 'true'); try {
@@ -470,7 +475,7 @@ async function generate() {
         notice(explainError(err, labels[page] || 'Operação atual'), true);
     } };
     worker.onerror = e => { finish(); notice('Falha no gerador: ' + e.message, true); };
-    worker.postMessage({ db, period, base: plan(), seed: Date.now() });
+    worker.postMessage({ db, period, base: plan(), seed: Date.now(), trace: true });
 }
 function renderList() {
     const key=page as 'rooms'|'teachers'|'subjects'|'cohorts'|'offers'|'graduates';
