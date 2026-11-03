@@ -419,7 +419,17 @@ export function changeRoom(d: DB, p: Plan, id: string, room: string) {
     return { plan: next, red: hardIssues(d, next.lessons, new Set([id])), yellow: [] as string[] };
 }
 /** Bounded randomized backtracking with 30-bit availability and occupancy masks. */
-export function generate(d: DB, period: string, base: Plan | undefined, seed: number): Plan {
+export type SearchTraceEvent = {
+  kind: 'phase-start' | 'visit' | 'backtrack' | 'solution' | 'phase-end';
+  phase: 'duplas' | 'simples';
+  visited: number;
+  total: number;
+  elapsedMs: number;
+  path: {offer: string; day: number; slot: number; room: string; length: number}[];
+};
+/** Eventos opcionais para visualizar o Backtracking na edição experimental. */
+export function generate(d: DB, period: string, base: Plan | undefined, seed: number,
+  onTrace?: (event: SearchTraceEvent) => void): Plan {
     validate(d);
     if (base && base.period !== period)
         throw Error('A grade base pertence a outro período.');
@@ -510,6 +520,14 @@ export function generate(d: DB, period: string, base: Plan | undefined, seed: nu
             }
         }
         const used = tasks.map(() => false);
+        const tracePath: SearchTraceEvent['path'] = [];
+        const phase: SearchTraceEvent['phase'] = paired ? 'duplas' : 'simples';
+        const emitTrace = (kind: SearchTraceEvent['kind']) => {
+            if (!onTrace) return;
+            onTrace({kind,phase,visited:nodes,total:tasks.length,elapsedMs:Date.now()-start,
+                path:tracePath.slice()});
+        };
+        emitTrace('phase-start');
         function search(left: number): boolean {
             if (!left)
                 return true;
@@ -517,6 +535,8 @@ export function generate(d: DB, period: string, base: Plan | undefined, seed: nu
                 expired = true;
                 return false;
             }
+            const sampled = !!onTrace && (nodes <= 32 || nodes % 90 === 0);
+            if (sampled) emitTrace('visit');
             let best = -1, options: Choice[] = [];
             const seen = new Set<string>();
             for (let i = 0; i < tasks.length; i++)
@@ -527,8 +547,10 @@ export function generate(d: DB, period: string, base: Plan | undefined, seed: nu
                     seen.add(key);
                     const busy = tb[task.t] | cb[task.c];
                     const valid = task.choices.filter(ch => !(ch.mask & (busy | rb[ch.room])));
-                    if (!valid.length)
+                    if (!valid.length) {
+                        if (sampled) emitTrace('backtrack');
                         return false;
+                    }
                     if (best < 0 || valid.length < options.length) {
                         best = i;
                         options = valid;
@@ -549,8 +571,11 @@ export function generate(d: DB, period: string, base: Plan | undefined, seed: nu
                 for (let k = 0; k < task.length; k++)
                     sc[task.s][ch.start + k]++;
                 lessons.push({ id: uid(), offer: task.o.id, day: Math.floor(ch.start / 6), slot: ch.start % 6, length: task.length, room: d.rooms[ch.room].id, locked: false });
+                if (onTrace) tracePath.push({offer:task.o.id,day:Math.floor(ch.start/6),slot:ch.start%6,
+                    room:d.rooms[ch.room].id,length:task.length});
                 if (search(left - 1))
                     return true;
+                if (onTrace) tracePath.pop();
                 lessons.pop();
                 tb[task.t] &= ~ch.mask;
                 cb[task.c] &= ~ch.mask;
@@ -561,12 +586,15 @@ export function generate(d: DB, period: string, base: Plan | undefined, seed: nu
                     break;
             }
             used[best] = false;
+            if (sampled) emitTrace('backtrack');
             return false;
         }
         if (search(tasks.length)) {
+            emitTrace('solution');
             const created = new Date();
             return { id: uid(), name: 'Alternativa ' + period + ' - ' + created.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }), period, lessons, created: created.toISOString() };
         }
+        emitTrace('phase-end');
         anyTimeout ||= expired;
     }
     throw Error(anyTimeout ? 'Limite de busca atingido; isso não prova que não existe solução.' : 'Não existe grade viável com estas disponibilidades e aulas fixas.');
