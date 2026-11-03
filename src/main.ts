@@ -15,6 +15,7 @@ else
         const labData = path.join(app.getPath('appData'), 'CelGrade LM Laboratorio');
         await fs.mkdir(labData, {recursive:true});
         app.setPath('userData', labData);
+        process.env.CELGRADE_LAB_MODE = '1';
         Menu.setApplicationMenu(null);
         app.setAppUserModelId('br.com.celgrade.lm.laboratorio');
         store = new Store(dataPath());
