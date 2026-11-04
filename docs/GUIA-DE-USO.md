@@ -14,10 +14,10 @@ Em uma migração de versão antiga, exporte um backup JSON antes de instalar a 
 
 Siga esta ordem sugerida:
 
-1. **Períodos letivos:** crie ou escolha o semestre do ano em que trabalhará (por exemplo, `2027.1`).
+1. **Períodos letivos:** crie ou escolha o semestre do ano em que trabalhará (por exemplo, `2027.1`). Um período que não será mais usado pode ser excluído na aba *Períodos letivos*: isso remove também as ofertas, os formandos e as alternativas de grade dele, mas mantém salas, professores, disciplinas e turmas. Antes da exclusão, o app cria um ponto de recuperação em *Dados e backup > Histórico de recuperação*. É preciso manter ao menos um período.
 2. **Salas:** cadastre os ambientes e suas disponibilidades.
 3. **Professores:** cadastre quem leciona e os horários disponíveis.
-4. **Disciplinas e turmas:** registre as disciplinas e as turmas ou etapas do curso.
+4. **Disciplinas e turmas:** registre as disciplinas, cada uma com seu **código** (por exemplo, `MAT101`, único entre as disciplinas), e as turmas ou etapas do curso. Disciplinas antigas, cadastradas antes dessa exigência, aparecem como "Sem código" e devem receber um código ao serem editadas.
 5. **Ofertas:** associe disciplina, professor, turma, período e número de aulas por semana.
 6. **Formandos:** quando necessário, cadastre as disciplinas de que cada estudante precisa no período e ative os que deverão ser considerados na análise.
 
@@ -68,7 +68,14 @@ O recurso **Desfazer** cobre os últimos movimentos da sessão de edição, conf
 
 Confira a alternativa selecionada e escolha a visualização desejada (por turma, professor ou formando), então exporte o PDF. Quando existem conflitos ou cargas incompletas, o aplicativo solicita confirmação e identifica a exportação como **rascunho**.
 
-Antes de compartilhar, abra o PDF para revisar nomes, horários, salas e eventuais pendências.
+O PDF segue o modelo de horário institucional, em A4 paisagem, com uma folha por turma, professor ou formando:
+
+- cada bloco de duas aulas ocupa uma única linha (07:30–09:10, 09:20–11:00 e 11:00–12:40), com os dois horários na primeira coluna;
+- os nomes das disciplinas aparecem em maiúsculas e negrito;
+- abaixo da grade há o quadro **Código, Disciplina e Professor(a)**, também em maiúsculas. Disciplinas antigas, sem código, mostram um traço no campo do código;
+- nas visões por professor e por formando, cada aula indica também a turma.
+
+Antes de compartilhar, abra o PDF para revisar nomes, horários e eventuais pendências.
 
 ## 7. Backups e recuperação
 

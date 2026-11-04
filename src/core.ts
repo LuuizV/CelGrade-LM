@@ -28,7 +28,19 @@ export function normalizeRooms(d: DB): DB {
 export type Subject = {
     id: string;
     name: string;
+    /** Código da disciplina (ex.: MAT101). Obrigatório no cadastro; registros antigos podem não ter. */
+    code?: string;
 };
+/** Código normalizado: sem espaços nas pontas, em maiúsculas. Aceita A-Z, 0-9, espaço, ponto, hífen e sublinhado (1 a 20 caracteres). */
+export const SUBJECT_CODE_PATTERN = /^[A-Z0-9][A-Z0-9 ._-]{0,19}$/;
+export const SUBJECT_CODE_HELP = 'Use letras (sem acento), números, espaço, ponto, hífen ou sublinhado, até 20 caracteres.';
+export function normalizeSubjectCode(value: unknown): string {
+    return String(value ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
+}
+export function subjectLabel(subject: {name: string; code?: string}): string {
+    const code = typeof subject.code === 'string' ? subject.code.trim() : '';
+    return code ? code + ' · ' + subject.name : subject.name;
+}
 export type Cohort = {
     id: string;
     name: string;
@@ -84,6 +96,29 @@ const weekDays = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira
 function lessonWhen(day: number, slot: number): string {
     const dayName = weekDays[day] || 'Dia inválido (' + day + ')';
     return dayName + ', ' + (times[slot] || 'horário inválido (' + slot + ')');
+}
+/** O que será removido junto com um período letivo. Salas, professores, disciplinas e turmas não pertencem a um período. */
+export function periodImpact(d: DB, period: string) {
+    const plans = d.plans.filter(p => p.period === period);
+    return {
+        offers: d.offers.filter(o => o.period === period).length,
+        graduates: d.graduates.filter(g => g.period === period).length,
+        plans: plans.length,
+        lessons: plans.reduce((n, p) => n + p.lessons.length, 0)
+    };
+}
+/** Devolve uma cópia sem o período e sem as ofertas, formandos e alternativas dele. Não altera o original. */
+export function deletePeriod(d: DB, period: string): DB {
+    if (!d.periods.includes(period))
+        throw Error('O período ' + period + ' não está cadastrado.');
+    if (d.periods.length <= 1)
+        throw Error('Não é possível excluir o único período letivo. Cadastre outro período antes.');
+    const next = structuredClone(d);
+    next.periods = next.periods.filter(p => p !== period);
+    next.offers = next.offers.filter(o => o.period !== period);
+    next.graduates = next.graduates.filter(g => g.period !== period);
+    next.plans = next.plans.filter(p => p.period !== period);
+    return next;
 }
 function validationError(local: string, _field: string, problem: string, _solution: string): never {
     const subject = local
@@ -148,6 +183,18 @@ export function validate(d: DB) {
             if (typeof r.name !== 'string' || !r.name.trim() || r.name.length > 200)
                 validationError(label + ' — ' + (r.name || 'registro sem nome') + ' (ID ' + r.id + ')', 'Nome', 'Nome obrigatório, até 200 caracteres.', 'Preencha um nome válido, sem deixá-lo em branco.');
         }
+    }
+    const codes = new Map<string, string>();
+    for (const sub of d.subjects) {
+        if (sub.code === undefined || sub.code === null || sub.code === '')
+            continue; // registros anteriores à exigência do código continuam válidos
+        const code = normalizeSubjectCode(sub.code);
+        if (typeof sub.code !== 'string' || !SUBJECT_CODE_PATTERN.test(code))
+            validationError('Disciplinas — ' + sub.name, 'Código', 'o código \"' + String(sub.code) + '\" é inválido. ' + SUBJECT_CODE_HELP, 'Edite a disciplina e informe um código válido.');
+        const owner = codes.get(code);
+        if (owner !== undefined)
+            validationError('Disciplinas — ' + sub.name, 'Código', 'o código ' + code + ' já pertence à disciplina ' + owner + '.', 'Use um código diferente para cada disciplina.');
+        codes.set(code, sub.name);
     }
     for (const c of d.cohorts) {
         if (!Number.isInteger(c.stage) || c.stage <= 0)

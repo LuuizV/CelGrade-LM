@@ -239,43 +239,76 @@ function renderSchedule() {
     if(expand)expand.onclick=()=>{const entries=$$('.graduate-list details') as HTMLDetailsElement[];const open=entries.some(d=>!d.open);entries.forEach(d=>d.open=open);expand.textContent=open?'Recolher todos':'Expandir todos'};
     renderTables();
 }
-// Documento independente da interface: grade limpa para PDF e impressão A4.
+// Documento independente da interface: modelo de horário em A4 paisagem para PDF e impressão.
+// Cada bloco de duas aulas (07:30, 09:20 e 11:00) vira uma única linha; textos em maiúsculas.
+function toRoman(n: number): string {
+    let rest = Math.max(0, Math.floor(n)), out = '';
+    for (const [value, symbol] of [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']] as [number, string][])
+        while (rest >= value) { out += symbol; rest -= value; }
+    return out || String(n);
+}
+// Nome do curso exibido no título do PDF. Altere aqui para usar o aplicativo com outro curso.
+const COURSE_NAME = 'Ciência da Computação';
 function printDocument(groups: {id: string; title: string; lessons: Lesson[]}[], p: Plan, mode: string): string {
-    const lessonList = (lessons: Lesson[], day: number, slot: number) => lessons
+    const up = (value: unknown) => String(value ?? '').toLocaleUpperCase('pt-BR');
+    const cohortName = (id: string) => db.cohorts.find(c => c.id === id)?.name || '';
+    const issues = [...Core.hardIssues(db,p.lessons),...Core.completeness(db,p)];
+    const covering = (lessons: Lesson[], day: number, slot: number) => lessons
         .filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length)
         .sort((a,b) => a.id.localeCompare(b.id));
-    const issues = [...Core.hardIssues(db,p.lessons),...Core.completeness(db,p)];
-    const header = '<div class="print-document-header"><div class="print-kicker">PLANEJAMENTO ACADÊMICO</div>' +
-        '<h1>Quadro de horários</h1><p>Período letivo ' + esc(period) + ' <span>·</span> ' + esc(p.name) + '</p></div>';
+    const lessonName = (l: Lesson) => {
+        const o = db.offers.find(x => x.id === l.offer);
+        if (!o) return '<div class="pdf-name"><strong>AULA SEM DISCIPLINA CADASTRADA</strong></div>';
+        const cohort = mode === 'cohort' ? '' : '<small>' + esc(up(cohortName(o.cohort))) + '</small>';
+        return '<div class="pdf-name"><strong>' + esc(up(name('subjects',o.subject))) + '</strong>' + cohort + '</div>';
+    };
+    const blockCell = (lessons: Lesson[], day: number, block: number) => {
+        const first = covering(lessons,day,block*2), second = covering(lessons,day,block*2+1);
+        if (!first.length && !second.length) return '<td class="pdf-cell"></td>';
+        const same = first.length > 0 && first.length === second.length && first.every((l,i) => l.id === second[i].id);
+        if (same) return '<td class="pdf-cell"><div class="pdf-full">' + first.map(lessonName).join('') + '</div></td>';
+        return '<td class="pdf-cell pdf-split"><div class="pdf-half">' + first.map(lessonName).join('') + '</div><div class="pdf-half">' + second.map(lessonName).join('') + '</div></td>';
+    };
+    const subjectRows = (lessons: Lesson[]) => {
+        const seen = new Set<string>(), rows: {code: string; subject: string; teacher: string}[] = [];
+        for (const l of lessons) {
+            const o = db.offers.find(x => x.id === l.offer);
+            if (!o || seen.has(o.id)) continue;
+            seen.add(o.id);
+            const subject = up(name('subjects',o.subject)) + (mode === 'cohort' ? '' : ' (' + up(cohortName(o.cohort)) + ')');
+            rows.push({code: up(db.subjects.find(s => s.id === o.subject)?.code?.trim() || ''), subject, teacher: up(name('teachers',o.teacher))});
+        }
+        return rows.sort((a,b) => a.subject.localeCompare(b.subject,'pt-BR') || a.code.localeCompare(b.code,'pt-BR'));
+    };
+    const heading = (g: {id: string; title: string}): [string, string] => {
+        if (mode === 'cohort') {
+            const c = db.cohorts.find(x => x.id === g.id);
+            return ['TURMA:', c ? toRoman(c.stage) + ' SEMESTRE - ' + up(c.name) : up(g.title)];
+        }
+        if (mode === 'teacher') return ['PROFESSOR(A):', up(g.title)];
+        return ['FORMANDO(A):', up(db.graduates.find(x => x.id === g.id)?.name ?? g.title)];
+    };
     const sheets = groups.map(g => {
-        const rows = Core.times.map((time,slot) => {
-            const cells = days.map((_,day) => {
-                const active = lessonList(g.lessons,day,slot);
-                const contents = active.length ? active.map(l => {
-                    const o=db.offers.find(x=>x.id===l.offer);
-                    if (!o) return '<div class="print-lesson">Aula sem disciplina cadastrada</div>';
-                    return '<div class="print-lesson subject-' + subjectTone(o.subject) + '">' +
-                        '<strong>' + esc(name('subjects',o.subject)) + '</strong>' +
-                        '<span>' + esc(name('teachers',o.teacher)) + '</span>' +
-                        '<span>' + esc(name('rooms',l.room)) + '</span></div>';
-                }).join('') : '<span class="print-empty">—</span>';
-                return '<td>' + contents + '</td>';
-            }).join('');
-            const interval = slot === 2
-                ? '<tr class="print-interval" aria-label="Intervalo"><td colspan="6">INTERVALO <span>09:10–09:20</span></td></tr>'
-                : '';
-            return interval + '<tr class="print-slot-row"><th scope="row">' + esc(time) + '</th>' + cells + '</tr>';
-        }).join('');
-        const status = mode==='graduate' ? Core.graduateReport(db,p).find(r=>r.id===g.id) : null;
-        const note = status && !status.ok ? '<p class="print-group-alert">Atendimento parcial: ' + esc(status.reasons.join('; ')) + '</p>' : '';
-        return '<section class="print-sheet"><div class="print-group-heading"><h2>' + esc(g.title) +
-            '</h2><span>' + esc(period) + '</span></div>' + note +
-            '<table class="print-grid"><thead><tr><th scope="col">Horário</th>' +
-            days.map(d=>'<th scope="col">'+esc(d)+'</th>').join('') +
-            '</tr></thead><tbody>' + rows + '</tbody></table></section>';
+        const rows = [0,1,2].map(block =>
+            '<tr class="pdf-block-row"><th scope="row" class="pdf-time"><div class="pdf-times"><span>' + esc(Core.times[block*2]) + '</span><span>' + esc(Core.times[block*2+1]) + '</span></div></th>' +
+            days.map((_,day) => blockCell(g.lessons,day,block)).join('') + '</tr>').join('');
+        const status = mode === 'graduate' ? Core.graduateReport(db,p).find(r => r.id === g.id) : null;
+        const note = status && !status.ok ? '<p class="pdf-note">ATENDIMENTO PARCIAL: ' + esc(up(status.reasons.join('; '))) + '</p>' : '';
+        const [label, value] = heading(g);
+        const list = subjectRows(g.lessons).map(r =>
+            '<tr><td>' + (esc(r.code) || '—') + '</td><td>' + esc(r.subject) + '</td><td>' + esc(r.teacher) + '</td></tr>').join('');
+        return '<section class="pdf-sheet">' +
+            '<table class="pdf-table pdf-schedule"><colgroup><col class="pdf-col-time"><col><col><col><col><col></colgroup><thead>' +
+            '<tr><th class="pdf-title" colspan="6">HORÁRIO - ' + esc(up(COURSE_NAME)) + ' - SEMESTRE LETIVO - ' + esc(period) + '</th></tr>' +
+            '<tr class="pdf-turma-row"><th class="pdf-label" scope="row">' + esc(label) + '</th><td class="pdf-turma" colspan="5">' + esc(value) + '</td></tr>' +
+            '<tr class="pdf-days"><th scope="col">Horário</th>' + days.map(d => '<th scope="col">' + esc(d.slice(0,3)) + '</th>').join('') + '</tr>' +
+            '</thead><tbody>' + rows + '</tbody></table>' + note +
+            '<table class="pdf-table pdf-subjects"><colgroup><col class="pdf-col-time"><col class="pdf-col-subject"><col></colgroup><thead>' +
+            '<tr><th scope="col">CÓDIGO</th><th scope="col">DISCIPLINA</th><th scope="col">PROFESSOR (A)</th></tr></thead><tbody>' + list + '</tbody></table>' +
+            '<p class="pdf-foot">' + esc(p.name) + '</p></section>';
     }).join('');
-    return '<div id="print-document" aria-hidden="true">' + header +
-        (issues.length ? '<p class="print-draft">RASCUNHO — a alternativa apresenta pendências.</p>' : '') +
+    return '<div id="print-document" aria-hidden="true">' +
+        (issues.length ? '<p class="pdf-draft">RASCUNHO — a alternativa apresenta pendências.</p>' : '') +
         (sheets || '<p>Nenhuma turma ou aula disponível nesta visualização.</p>') + '</div>';
 }
 function renderTables() {
@@ -508,11 +541,12 @@ function renderList() {
             let details='',extra='';
             if('available' in x){details=chips([x.available.filter(Boolean).length+' horários disponíveis']);if(key==='rooms')extra='<td>'+chips([(x as import('./core').Resource).module||'Sem módulo'])+'</td>';}
             else if('stage' in x)details=chips([x.stage+'º semestre',x.room?name('rooms',x.room):'Sala automática']);
+            else if(key==='subjects'){const code=(x as import('./core').Subject).code;extra='<td>'+(code?'<span class="record-chip">'+esc(code)+'</span>':'<span class="record-chip chip-muted" title="Edite a disciplina para informar o código.">Sem código</span>')+'</td>';}
             return '<tr><td><span class="record-label">'+(navIcons[key]||'')+esc(label)+'</span></td>'+extra+'<td>'+details+'</td>'+
             '<td class="record-actions"><button class="edit-action" data-edit="'+esc(x.id)+'">'+navIcons.edit+'Editar</button> <button class="delete-action" data-delete="'+esc(x.id)+'">'+navIcons.delete+'Excluir</button></td></tr>';
         }).join('');
         $('#content').innerHTML='<div class="panel records-panel"><div class="actions">'+button('add','+ Adicionar','primary')+
-        '<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><div class="record-table-scroll"><table><thead><tr><th>'+title+'</th>'+(key==='rooms'?'<th>Módulo</th>':'')+
+        '<span class="muted">Cadastros preservam as grades. Alterações podem deixar avisos de inconsistência.</span></div><div class="record-table-scroll"><table><thead><tr><th>'+title+'</th>'+(key==='rooms'?'<th>Módulo</th>':key==='subjects'?'<th>Código</th>':'')+
         '<th>Detalhes</th><th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div>'+(rows.length?'':'<p class="muted">Nenhum cadastro ainda.</p>')+'</div>';
     }
     $('#add').onclick=()=>edit(null);
@@ -535,6 +569,8 @@ function edit(id: string | null) {
         name: string;
     }[], value: string) => `<label>${title}<select name="${n}" ${n === 'room' ? '' : 'required'}>${options(items, value)}</select></label>`;
     if (page !== 'offers') html += field('name', 'Nome', x.name || '');
+    if (page === 'subjects')
+        html += `<label>Código da disciplina<input name="code" type="text" required maxlength="20" autocomplete="off" placeholder="Ex.: MAT101" value="${esc(x.code || '')}"></label><p class="muted">${esc(Core.SUBJECT_CODE_HELP)}</p>`;
     if (page === 'rooms') html += field('module', 'Módulo', x.module || '');
     if (page === 'rooms' || page === 'teachers') {
         html += '<p>Disponibilidade semanal — marque quando pode receber aulas</p><div class="actions"><button type="button" id="all">Marcar todos</button><button type="button" id="none">Desmarcar todos</button></div><table class="availability"><tr><th>Horário</th>' + days.map(d => '<th>' + d + '</th>').join('') + '</tr>' + Core.times.map((t, slot) => '<tr><th>' + t + '</th>' + days.map((d, day) => `<td><input type="checkbox" name="available" aria-label="${d} ${t}" value="${day * 6 + slot}" ${(x.available || Array(30).fill(1))[day * 6 + slot] ? 'checked' : ''}></td>`).join('') + '</tr>').join('') + '</table>';
@@ -543,9 +579,9 @@ function edit(id: string | null) {
     if (page === 'cohorts')
         html += field('stage', 'Semestre do curso', x.stage || 1, 'number') + select('room', 'Sala preferencial', [{ id: '', name: 'Automática' }, ...db.rooms], x.room || '');
     if (page === 'offers')
-        html += select('subject', 'Disciplina', db.subjects, x.subject) + select('teacher', 'Professor', db.teachers, x.teacher) + select('cohort', 'Turma', db.cohorts, x.cohort) + field('load', 'Aulas semanais de 50 minutos', x.load || 2, 'number') + `<p class="muted">Oferta para ${period}. A disciplina pode ter outras ofertas em outras turmas.</p>`;
+        html += select('subject', 'Disciplina', db.subjects.map(s => ({ id: s.id, name: Core.subjectLabel(s) })), x.subject) + select('teacher', 'Professor', db.teachers, x.teacher) + select('cohort', 'Turma', db.cohorts, x.cohort) + field('load', 'Aulas semanais de 50 minutos', x.load || 2, 'number') + `<p class="muted">Oferta para ${period}. A disciplina pode ter outras ofertas em outras turmas.</p>`;
     if (page === 'graduates')
-        html += `<label><input type="checkbox" name="active" ${x.active !== false ? 'checked' : ''}> Considerar no planejamento de ${period}</label><h3>Disciplinas necessárias</h3><div class="checks">${db.subjects.map(s => `<label><input type="checkbox" name="subject" value="${s.id}" ${(x.subjects || []).includes(s.id) ? 'checked' : ''}> ${esc(s.name)}</label>`).join('')}</div>`;
+        html += `<label><input type="checkbox" name="active" ${x.active !== false ? 'checked' : ''}> Considerar no planejamento de ${period}</label><h3>Disciplinas necessárias</h3><div class="checks">${db.subjects.map(s => `<label><input type="checkbox" name="subject" value="${s.id}" ${(x.subjects || []).includes(s.id) ? 'checked' : ''}> ${esc(Core.subjectLabel(s))}</label>`).join('')}</div>`;
     $('#fields').innerHTML = html;
     if ($('#all'))
         $('#all').onclick = () => document.querySelectorAll<HTMLInputElement>('[name=available]').forEach(x => x.checked = true);
@@ -591,6 +627,13 @@ $('#form').onsubmit = async (e) => { e.preventDefault(); if (renamingPlan) {
     x.subjects = f.getAll('subject');
     x.active = f.has('active');
     x.period = old?.period || period;
+} if (page === 'subjects') {
+    const code = Core.normalizeSubjectCode(f.get('code'));
+    if (!code) { $('#error').textContent = 'Informe o código da disciplina.'; return; }
+    if (!Core.SUBJECT_CODE_PATTERN.test(code)) { $('#error').textContent = 'Código inválido. ' + Core.SUBJECT_CODE_HELP; return; }
+    const other = rows.find(r => r.id !== x.id && Core.normalizeSubjectCode(r.code) === code);
+    if (other) { $('#error').textContent = 'O código ' + code + ' já está em uso pela disciplina ' + other.name + '.'; return; }
+    x.code = code;
 } if (old)
     rows[rows.indexOf(old)] = x;
 else
@@ -605,8 +648,25 @@ catch (err) {
     $('#error').textContent = explainError(err, $('#edit-title').textContent || 'Cadastro');
 } };
 $('#cancel').onclick = () => $<HTMLDialogElement>('#editor').close();
+async function deleteAcademicPeriod(target: string) {
+    if (saving || busy) return;
+    if (db.periods.length < 2) { notice('É preciso manter ao menos um período letivo.', true); return; }
+    const i = Core.periodImpact(db, target);
+    const message = 'Excluir o período ' + target + '? Serão removidos junto com ele: ' + i.offers + ' oferta(s), ' + i.graduates + ' formando(s) e ' + i.plans + ' alternativa(s) de grade. ' +
+        'Salas, professores, disciplinas e turmas são mantidos. Um ponto de recuperação é criado antes, em Dados e backup > Histórico de recuperação.';
+    if (!await confirmInApp('Excluir período letivo', message, 'Excluir período', true)) return;
+    try {
+        const next = Core.deletePeriod(db, target);
+        await save(next, 'Antes de excluir o período ' + target);
+        if (period === target || !db.periods.includes(period)) period = db.periods[0];
+        localStorage.setItem('celgrade-active-period', period);
+        planId = ''; undo = [];
+        render();
+        notice('Período ' + target + ' excluído.');
+    } catch (e) { notice(explainError(e, 'Períodos letivos'), true); }
+}
 function renderPeriods() {
-    const items=db.periods.map(p=>'<div class="period-entry"><span class="period-entry-icon" aria-hidden="true">'+navIcons.periods+'</span><div class="period-entry-copy"><strong>'+esc(p)+'</strong><small>'+(p.endsWith('.1')?'1º semestre':'2º semestre')+' de '+esc(p.slice(0,4))+'</small></div>'+(p===period?'<span class="period-active-label">Em uso</span>':'<button type="button" data-use-period="'+esc(p)+'">Selecionar</button>')+'</div>').join('');
+    const items=db.periods.map(p=>'<div class="period-entry"><span class="period-entry-icon" aria-hidden="true">'+navIcons.periods+'</span><div class="period-entry-copy"><strong>'+esc(p)+'</strong><small>'+(p.endsWith('.1')?'1º semestre':'2º semestre')+' de '+esc(p.slice(0,4))+'</small></div>'+(p===period?'<span class="period-active-label">Em uso</span>':'<button type="button" data-use-period="'+esc(p)+'">Selecionar</button>')+'<button type="button" class="delete-action" data-delete-period="'+esc(p)+'"'+(db.periods.length<2?' disabled title="É preciso manter ao menos um período letivo."':'')+'>'+navIcons.delete+'Excluir</button></div>').join('');
     $('#content').innerHTML='<section class="periods-page"><div class="period-cards">'+
       '<div class="panel period-card"><div class="period-card-heading"><span class="period-card-icon">'+navIcons.periods+'</span><div><h2>Período em uso</h2><p class="muted">Aplicado às demais abas</p></div></div><div id="period-mount"></div><p class="period-current">Período selecionado: <strong>'+esc(period)+'</strong></p></div>'+
       '<div class="panel period-card"><div class="period-card-heading"><span class="period-card-icon">'+navIcons.add+'</span><div><h2>Cadastrar novo período</h2><p class="muted">Formato: ano e semestre</p></div></div><label for="new-period">Novo período</label><input id="new-period" placeholder="Ex.: 2027.1" pattern="[0-9]{4}\\.[12]" inputmode="text"><div class="period-add-actions">'+button('add-period','Adicionar período','primary')+'</div></div>'+
@@ -617,6 +677,7 @@ function renderPeriods() {
         $<HTMLSelectElement>('#period').value=button.dataset.usePeriod!;
         $('#period').dispatchEvent(new Event('change',{bubbles:true}));
     });
+    $$('[data-delete-period]').forEach(b=>b.onclick=()=>void deleteAcademicPeriod(b.dataset.deletePeriod!));
     $('#add-period').onclick=async()=>{
         const value=$<HTMLInputElement>('#new-period').value.trim();
         if(!/^\d{4}\.[12]$/.test(value)){notice('Informe um período válido no formato AAAA.1 ou AAAA.2.',true);return;}

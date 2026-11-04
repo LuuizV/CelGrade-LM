@@ -86,3 +86,37 @@ test('0.9.4: janelas calculadas por turma e demanda dos formandos',()=>{
  const count=C.graduateDemand(d,'2027.1');assert(Array.isArray(count));
  assert(count.every(x=>x.count>=1));
 });
+
+test('0.9.8: excluir período remove só ofertas, formandos e grades dele',()=>{
+ const d=C.demo();
+ d.periods.push('2027.2');
+ d.offers.push({id:'ox',subject:'s1',teacher:'t2',cohort:'c2',period:'2027.2',load:2});
+ d.graduates.push({id:'gx',name:'Ana',period:'2027.2',subjects:['s1'],active:true});
+ d.plans.push({id:'px',name:'Grade 2',period:'2027.2',created:'2027-01-01',lessons:[{id:'lx',offer:'ox',day:0,slot:0,length:2,room:'r1',locked:false}]});
+ const before=JSON.stringify(d);
+ assert.deepEqual(C.periodImpact(d,'2027.2'),{offers:1,graduates:1,plans:1,lessons:1});
+ const n=C.deletePeriod(d,'2027.2');
+ assert.equal(JSON.stringify(d),before,'o original não pode ser alterado');
+ assert.deepEqual(n.periods,['2027.1']);
+ assert(n.offers.every(o=>o.period==='2027.1')&&n.offers.length===d.offers.length-1);
+ assert(n.graduates.every(g=>g.period==='2027.1'));
+ assert.equal(n.plans.length,0);
+ for(const k of ['rooms','teachers','subjects','cohorts'])assert.equal(n[k].length,d[k].length);
+ C.validate(n);
+ assert.throws(()=>C.deletePeriod(n,'2027.1'),/único período/);
+ assert.throws(()=>C.deletePeriod(d,'2030.1'),/não está cadastrado/);
+});
+
+test('0.9.8: código da disciplina é normalizado, único e opcional só em registros antigos',()=>{
+ assert.equal(C.normalizeSubjectCode('  mat   101 '),'MAT 101');
+ assert(C.SUBJECT_CODE_PATTERN.test('MAT101')&&C.SUBJECT_CODE_PATTERN.test('CET-053.A'));
+ assert(!C.SUBJECT_CODE_PATTERN.test('')&&!C.SUBJECT_CODE_PATTERN.test('MÁT1')&&!C.SUBJECT_CODE_PATTERN.test('A'.repeat(21)));
+ assert.equal(C.subjectLabel({name:'Cálculo I',code:'MAT101'}),'MAT101 · Cálculo I');
+ assert.equal(C.subjectLabel({name:'Cálculo I'}),'Cálculo I');
+ const d=C.demo();C.validate(d); // disciplinas antigas, sem código, continuam válidas
+ d.subjects[0].code='ALG1';d.subjects[1].code='mat101';C.validate(d);
+ d.subjects[1].code=' alg1 ';
+ assert.throws(()=>C.validate(d),/código ALG1 já pertence/);
+ d.subjects[1].code='Cálculo';
+ assert.throws(()=>C.validate(d),/inválido/);
+});

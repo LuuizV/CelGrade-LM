@@ -138,32 +138,41 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
 #print-document{display:none}
 @media print{
   #tables > .panel,#tables > article.panel,#tables > #print-header{display:none!important}
-  #print-document{display:block!important;visibility:visible!important;color:#1b362a;font-family:'Segoe UI',Arial,sans-serif}
-  .print-document-header{display:block;border-bottom:2px solid #17694e;margin:0 0 16px;padding:0 0 12px}
-  .print-kicker{font-size:9px;letter-spacing:1.5px;font-weight:700;color:#567b65}
-  .print-document-header h1{font-size:20px;line-height:1.2;margin:5px 0 4px;color:#164e36;letter-spacing:0}
-  .print-document-header p{font-size:10px;margin:0;color:#536b60}
-  .print-document-header p span{padding:0 4px;color:#8ca298}
-  .print-draft{font-size:9px;margin:0 0 10px;color:#a44334}
-  .print-sheet{display:block;break-after:page;page-break-after:always;margin:0;padding:0;break-inside:avoid-page}
-  .print-sheet:last-child{break-after:auto;page-break-after:auto}
-  .print-group-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 10px;padding:0 0 8px;border-bottom:1px solid #dce8df}
-  .print-group-heading h2{font-size:13px;color:#214b3a;margin:0;font-weight:700}
-  .print-group-heading span{font-size:10px;color:#648271}
-  .print-group-alert{font-size:9px;color:#9a5921;margin:0 0 9px;line-height:1.4}
-  table.print-grid{width:100%;table-layout:fixed;border-collapse:collapse;min-width:0;border:1px solid #d9e4dc;font-size:9px}
-  .print-grid th,.print-grid td{border:1px solid #d9e4dc;vertical-align:middle;padding:4px;overflow-wrap:anywhere}
-  .print-grid thead th{height:26px;background:#eaf3ed!important;text-align:center;color:#335c46;font-size:10px;font-weight:700}
-  .print-grid thead th:first-child{width:87px}
-  .print-grid tbody th{width:87px;background:#f3f7f4!important;text-align:center;color:#496554;font-size:9px;font-weight:600;line-height:1.3}
-  .print-grid tbody tr{height:53px}
-  .print-grid tbody td{background:#fff!important;text-align:left;padding:3px}
-  .print-lesson{display:flex;flex-direction:column;gap:2px;line-height:1.22;border-radius:3px;border-left:3px solid;padding:6px 6px 5px!important;min-width:0;break-inside:avoid;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
-  .print-lesson strong{display:block;font-size:9px;font-weight:700;overflow-wrap:anywhere}
-  .print-lesson span{font-size:8px;overflow-wrap:anywhere}
-  .print-empty{display:block;text-align:center;color:#aab9ac;font-size:10px}
-  .print-lesson.subject-0,.print-lesson.subject-1,.print-lesson.subject-2,.print-lesson.subject-3,.print-lesson.subject-4,.print-lesson.subject-5{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+  #print-document{display:block!important;visibility:visible!important;color:#000;font-family:Calibri,'Segoe UI',Arial,sans-serif}
+  .pdf-draft{margin:0 0 6px;font-size:10px;font-weight:700;color:#c00000}
+  .pdf-sheet{display:block;break-after:page;page-break-after:always;margin:0;padding:0}
+  .pdf-sheet:last-child{break-after:auto;page-break-after:auto}
+  table.pdf-table{width:100%;table-layout:fixed;border-collapse:collapse;min-width:0;border:2px solid #000;color:#000}
+  .pdf-table th,.pdf-table td{border:1px solid #000;padding:3px 6px;vertical-align:middle;overflow-wrap:anywhere;background:#fff!important}
+  col.pdf-col-time{width:34mm}
+  col.pdf-col-subject{width:50%}
+  #print-document .pdf-table th{color:#000!important}
+  .pdf-title{height:9mm;text-align:center;font-size:16px;font-weight:700;letter-spacing:.3px}
+  .pdf-label{height:12mm;text-align:left;font-size:14px;font-weight:700}
+  .pdf-turma{text-align:left;font-size:22px;font-weight:700;color:#c00000;padding-left:14px}
+  #print-document .pdf-turma-row th,#print-document .pdf-turma-row td,#print-document .pdf-subjects thead th{background:#cfe5f7!important}
+  .pdf-days th{height:8mm;text-align:center;font-size:12px;font-weight:700}
+  .pdf-days th:first-child{text-align:left}
+  tr.pdf-block-row{height:24mm;break-inside:avoid}
+  th.pdf-time,td.pdf-cell{padding:0}
+  .pdf-times{display:flex;flex-direction:column;justify-content:space-around;height:22mm;padding:0 6px;font-size:11px;font-weight:700;text-align:left}
+  .pdf-full,.pdf-half{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 5px}
+  .pdf-full{height:22mm}
+  .pdf-half{height:11mm}
+  .pdf-half + .pdf-half{border-top:1px dashed #000}
+  .pdf-name{display:block;text-align:center}
+  .pdf-name + .pdf-name{margin-top:3px}
+  .pdf-name strong{display:block;font-size:14px;font-weight:700;line-height:1.15}
+  .pdf-half .pdf-name strong{font-size:11px}
+  .pdf-name small{display:block;margin-top:2px;font-size:9px;font-weight:600;line-height:1.1}
+  .pdf-subjects{border-top:0!important}
+  .pdf-subjects th{height:7mm;text-align:left;font-size:12px;font-weight:700}
+  .pdf-subjects td{height:6mm;padding:2px 6px;text-align:left;font-size:11.5px;text-transform:uppercase}
+  .pdf-subjects tr{break-inside:avoid}
+  .pdf-note{margin:4px 0;font-size:10px;font-weight:700;color:#c00000}
+  .pdf-foot{margin:4px 0 0;text-align:right;font-size:8px;color:#555}
 }
+
 
 /* A própria lista de alternativas conserva a classificação por cor. */
 .plan-select option[data-status=green]{background-color:#d7efdf;color:#174e35}
@@ -173,7 +182,7 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
 /* 0.9.1 — Folha inteiramente branca, cartões repetidos por horário e diagramação acadêmica A4. */
 @media print {
   @page { size:A4 landscape; margin:10mm; background:#fff }
-  :root,html,body,main,#content,#tables,#print-document,.print-sheet {
+  :root,html,body,main,#content,#tables,#print-document,.pdf-sheet {
     background:#fff!important;
     background-color:#fff!important;
     box-shadow:none!important;
@@ -181,57 +190,9 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
   html,body { margin:0!important;padding:0!important;min-height:0!important;height:auto!important }
   main,#content,#tables,#print-document { margin:0!important;padding:0!important;max-width:none!important }
   body { print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important }
-
-  .print-document-header {margin:0 0 16px!important;padding:0 0 12px!important;border-bottom:2px solid #17694e}
-  .print-document-header::before{content:"";display:block;width:46px;height:3px;margin:0 0 9px;background:#b18b45}
-  .print-kicker{font-size:10px!important;letter-spacing:1.25px!important;color:#557c67!important}
-  .print-document-header h1{font-size:25px!important;font-weight:750!important;line-height:1.1!important;margin:4px 0 5px!important;letter-spacing:-.4px!important;color:#184b37!important}
-  .print-document-header p{font-size:11px!important;line-height:1.4!important;color:#5c7064!important}
-  .print-group-heading{margin:0 0 12px!important;padding:0 0 9px!important;border-bottom:1px solid #d9e6dc!important}
-  .print-group-heading h2{font-size:17px!important;color:#194936!important;line-height:1.15!important;font-weight:700!important}
-  .print-group-heading span{font-size:11px!important;color:#687f72!important}
-  .print-sheet{break-inside:avoid-page!important;page-break-inside:avoid!important;margin:0!important;padding:0!important}
-  .print-sheet + .print-sheet{padding-top:8px!important}
-  .print-grid{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;border:1px solid #d7e4da!important}
-  .print-grid thead th{background:#eef5ef!important;color:#285441!important;font-size:11px!important;height:32px!important;padding:7px!important;text-align:center!important;letter-spacing:.1px}
-  .print-grid thead th:first-child,.print-grid tbody th{width:91px!important}
-  .print-grid tbody tr.print-slot-row{height:21mm!important;break-inside:avoid-page!important}
-  .print-grid tbody tr.print-slot-row th{
-    background:#fafcfa!important;color:#587060!important;font-size:10px!important;
-    line-height:1.35!important;white-space:nowrap!important;font-weight:600!important
-  }
-  .print-grid tbody tr.print-slot-row td{
-    background:#fff!important;padding:5px!important;vertical-align:middle!important;
-    border-color:#dce7df!important
-  }
-  .print-grid th,.print-grid td{border-color:#dce7df!important;overflow-wrap:anywhere!important}
-  .print-grid .print-lesson{
-    min-height:16mm!important;
-    padding:8px 9px!important;
-    gap:3px!important;
-    display:flex!important;
-    flex-direction:column!important;
-    justify-content:center!important;
-    border-left-width:4px!important;
-    border-radius:4px!important;
-    box-shadow:none!important;
-    print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important
-  }
-  .print-grid .print-lesson strong{font-size:11px!important;line-height:1.24!important;font-weight:700!important}
-  .print-grid .print-lesson span{font-size:9.5px!important;line-height:1.22!important}
-  .print-grid .print-empty{font-size:12px!important;color:#bac9be!important}
-  .print-grid tr.print-interval{height:17px!important;break-inside:avoid-page!important}
-  .print-grid tr.print-interval td{
-    height:17px!important;padding:2px 7px!important;
-    font-size:8px!important;letter-spacing:1px!important;font-weight:700!important;
-    text-align:center!important;
-    background:#f7faf7!important;color:#648474!important;
-    border-left:1px solid #dce7df!important;
-  }
-  .print-grid tr.print-interval span{font-weight:500!important;letter-spacing:0!important;margin-left:9px!important}
-  .print-draft{font-size:10px!important;color:#984b39!important}
-  .print-group-alert{font-size:10px!important;color:#985b2e!important}
+  .pdf-sheet { margin:0!important;padding:0!important }
 }
+
 
 /* v0.9.2: controles compactos, confirmações internas e painel de atualização. */
 .delete-pair{display:inline-flex;gap:0;align-items:stretch}
@@ -519,3 +480,6 @@ body:has(#tip:not([hidden])) main{padding-bottom:110px}
    filter:drop-shadow(0 1px 1px #0002);
  }
 }
+
+.delete-action:disabled{opacity:.45;cursor:not-allowed}
+.delete-action:disabled:hover{background:#fff2ef}

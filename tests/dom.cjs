@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{JSDOM}=require('jsdom'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),C=require('../dist/core'),{Store}=require('../dist/storage');
 const tick=()=>new Promise(r=>setTimeout(r,10));
-async function app(){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'celgrade-dom-')),store=new Store(path.join(dir,'test.sqlite'));const d=C.demo();d.offers.forEach(o=>o.load=2);d.plans=[{id:'p',name:'Grade',period:'2027.1',created:'2027-01-01',lessons:[{id:'a',offer:'o1',day:2,slot:0,length:2,room:'r1',locked:false},{id:'b',offer:'o2',day:0,slot:0,length:2,room:'r1',locked:false},{id:'c',offer:'o3',day:1,slot:0,length:2,room:'r2',locked:false}]}];store.save(d);const dom=new JSDOM(fs.readFileSync(path.join(__dirname,'../web/index.html'),'utf8'),{url:'https://celgrade.test',runScripts:'outside-only'});const w=dom.window;w.structuredClone=structuredClone;w.HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};w.HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');this.dispatchEvent(new w.Event('close'));};let decision=true,confirmations=[],pdfs=0;w.confirm=msg=>{confirmations.push(msg);return decision;};w.desktop={read:async()=>store.read(),save:async(d,r)=>store.save(d,r),history:async()=>store.history(),restoreHistory:async(id,rev)=>store.restore(id,rev),pdf:async()=>{pdfs++;return true;},folder:async()=>{},export:async()=>true,import:async()=>null};w.eval(fs.readFileSync(path.join(__dirname,'../web/core.js'),'utf8'));w.eval(fs.readFileSync(path.join(__dirname,'../web/renderer.js'),'utf8'));await tick();w.document.querySelector('#release-history')?.close();await tick();const $=s=>{const el=w.document.querySelector(s);assert(el,'Missing '+s);return el;};return {w,$,store,confirmations,get pdfs(){return pdfs;},setDecision(v){decision=v;},async close(){w.close();store.close();fs.rmSync(dir,{recursive:true,force:true});}};}
+async function app(mutate){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'celgrade-dom-')),store=new Store(path.join(dir,'test.sqlite'));const d=C.demo();d.offers.forEach(o=>o.load=2);d.plans=[{id:'p',name:'Grade',period:'2027.1',created:'2027-01-01',lessons:[{id:'a',offer:'o1',day:2,slot:0,length:2,room:'r1',locked:false},{id:'b',offer:'o2',day:0,slot:0,length:2,room:'r1',locked:false},{id:'c',offer:'o3',day:1,slot:0,length:2,room:'r2',locked:false}]}];if(mutate)mutate(d);store.save(d);const dom=new JSDOM(fs.readFileSync(path.join(__dirname,'../web/index.html'),'utf8'),{url:'https://celgrade.test',runScripts:'outside-only'});const w=dom.window;w.structuredClone=structuredClone;w.HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};w.HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');this.dispatchEvent(new w.Event('close'));};let decision=true,confirmations=[],pdfs=0;w.confirm=msg=>{confirmations.push(msg);return decision;};w.desktop={read:async()=>store.read(),save:async(d,r)=>store.save(d,r),history:async()=>store.history(),restoreHistory:async(id,rev)=>store.restore(id,rev),pdf:async()=>{pdfs++;return true;},folder:async()=>{},export:async()=>true,import:async()=>null};w.eval(fs.readFileSync(path.join(__dirname,'../web/core.js'),'utf8'));w.eval(fs.readFileSync(path.join(__dirname,'../web/renderer.js'),'utf8'));await tick();w.document.querySelector('#release-history')?.close();await tick();const $=s=>{const el=w.document.querySelector(s);assert(el,'Missing '+s);return el;};return {w,$,store,confirmations,get pdfs(){return pdfs;},setDecision(v){decision=v;},async close(){w.close();store.close();fs.rmSync(dir,{recursive:true,force:true});}};}
 test('renderer: yellow cancel/accept, red block, context room and undo',async()=>{const a=await app();try{const {w,$,store}=a;assert.equal(w.document.querySelectorAll('.grid').length,2);const before=store.read();$('.lesson[data-lesson="c"]').click();const dest=$('td[data-cohort="c2"][data-day="0"][data-slot="0"]');assert(dest.classList.contains('yellow'));a.setDecision(false);dest.click();await tick();w.document.querySelector('.cel-confirm [data-choice="cancel"]').click();await tick();assert.deepEqual(store.read(),before);a.setDecision(true);$('.lesson[data-lesson="c"]').click();$('td[data-cohort="c2"][data-day="0"][data-slot="0"]').click();await tick();w.document.querySelector('.cel-confirm [data-choice="yes"]').click();await tick();assert.equal(store.read().plans[0].lessons.find(l=>l.id==='c').day,0);assert(!w.document.querySelector('.cel-confirm'));const revision=store.read().revision;$('.lesson[data-lesson="c"]').click();const red=$('td[data-cohort="c2"][data-day="2"][data-slot="0"]');assert(red.classList.contains('red'));red.click();await tick();assert.equal(store.read().revision,revision);assert($('#notice').textContent.includes('bloqueado'));$('[data-undo-cohort="c2"]').click();await tick();assert.equal(store.read().plans[0].lessons.find(l=>l.id==='c').day,1);assert.equal(w.document.querySelector('#move-room'),null);$('.lesson[data-lesson="b"]').dispatchEvent(new w.MouseEvent('contextmenu',{bubbles:true,cancelable:true}));$('#room-select').value='r2';$('#room-select').dispatchEvent(new w.Event('change'));$('#room-save').click();await tick();assert.equal(store.read().plans[0].lessons.find(l=>l.id==='b').day,0);$('.lesson[data-lesson="b"]').click();$('td[data-cohort="c1"][data-day="3"][data-slot="0"]').click();await tick();assert.equal(store.read().plans[0].lessons.find(l=>l.id==='b').room,'r2');}finally{await a.close();}});
 test('renderer: actual rename form, editing, recovery and individual notes',async()=>{const a=await app();try{const {$,w,store}=a;$('#rename-plan').click();$('input[name="name"]').value='Alternativa revisada';$('#form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();assert.equal(store.read().plans[0].name,'Alternativa revisada');$('[data-page="teachers"]').click();$('[data-edit="t1"]').click();$('input[name="name"]').value='Ana Revisada';$('#form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();assert.equal(store.read().teachers[0].name,'Ana Revisada');$('[data-page="backup"]').click();$('#recovery').click();await tick();$('[data-recover]').click();await tick();w.document.querySelector('.cel-confirm [data-choice="yes"]').click();await tick();assert.equal(store.read().teachers[0].name,'Ana Oliveira');$('[data-page="schedule"]').click();$('#view').value='graduate';$('#view').dispatchEvent(new w.Event('change'));assert.equal(w.document.querySelectorAll('.grid').length,1);assert($('#tables').textContent.includes('Todas as disciplinas'));$('#pdf').click();await tick();assert.equal(a.pdfs,1);}finally{await a.close();}});
 test('worker cancellation preserves original plans',async()=>{const a=await app();try{let terminated=false;a.w.Worker=class{postMessage(){}terminate(){terminated=true;}};const before=a.store.read();a.$('#generate').click();assert.equal(a.$('#cancel-generation').hidden,false);assert(a.$('#period').disabled);a.$('#cancel-generation').click();await tick();assert(terminated);assert.deepEqual(a.store.read(),before);assert(!a.$('#period').disabled);assert([...a.w.document.querySelectorAll('.cohort-actions button[disabled]')].length>=2);}finally{await a.close();}});
@@ -84,7 +84,7 @@ test('0.9.0: controles, tarde desabilitada e visual de impressão',async()=>{
   assert.equal($('#delete-plan').closest('.command-group').querySelector('small').textContent,'ALTERNATIVAS');
   assert.equal(w.document.querySelectorAll('.afternoon-switch input:disabled').length,2);
   assert.equal(w.document.querySelectorAll('.cohort-actions button:disabled').length,4);
-  assert($('#print-document').textContent.includes('Quadro de horários'));
+  assert($('#print-document').textContent.includes('HORÁRIO - CIÊNCIA DA COMPUTAÇÃO - SEMESTRE LETIVO'));
   assert.equal($('#tables').textContent.includes('CelGrade LM · Grade'),false);
   assert.equal($('#tables').textContent.includes(' · dupla'),false);
   assert.equal(store.read().plans.length,1);
@@ -98,24 +98,6 @@ test('0.9.0: exclusão pede confirmação e preserva cadastros',async()=>{
  }finally{await a.close();}
 });
 
-test('0.9.0: PDF separado agrupa aulas duplas e exibe professores e salas',async()=>{
- const a=await app();try{const {$,w}=a;
-  const doc=$('#print-document');
-  assert.match(doc.textContent,/Quadro de horários/);
-  assert.match(doc.textContent,/Período letivo 2027.1/);
-  assert.match(doc.textContent,/Ana Oliveira/);
-  assert.match(doc.textContent,/Sala 101/);
-  assert.equal(doc.textContent.includes(' · dupla'),false);
-  assert.equal(doc.querySelectorAll('.print-grid').length,2);
-  assert.equal(doc.querySelectorAll('.print-grid td[rowspan]').length,0,'Cada aula aparece separadamente nos dois horários');
-  assert.equal([...doc.querySelectorAll('.print-sheet:first-of-type .print-lesson strong')]
-    .filter(x=>x.textContent==='Algoritmos').length,2,'Disciplina dupla deve aparecer em ambas as linhas');
-  assert.equal(doc.querySelectorAll('.print-grid').length,2);
-  assert.equal(doc.querySelectorAll('.print-interval').length,2);
-  assert.equal(doc.querySelectorAll('.print-slot-row').length,12);
-  assert.equal(doc.textContent.includes('CelGrade LM · Grade'),false);
- }finally{await a.close();}
-});
 test('0.9.0: desfazer movimento em uma turma preserva outra',async()=>{
  const a=await app();try{const {$,w,store}=a;
   $('.lesson[data-lesson="c"]').click();
@@ -140,19 +122,6 @@ test('0.9.0: lista de alternativas inclui classificação individual e cor',asyn
   assert.equal(item.dataset.status,'green');
   assert.equal($('#plans').dataset.status,'green');
   assert.match(item.textContent,/🟢/);
- }finally{await a.close();}
-});
-
-test('0.9.1: impressão possui página branca e cartões em horários separados',async()=>{
- const a=await app();try {
-  const {w,$}=a;
-  const documentPrint=$('#print-document');
-  assert.equal(documentPrint.querySelectorAll('.print-grid td[rowspan]').length,0);
-  assert(documentPrint.querySelectorAll('.print-slot-row').length>=6);
-  const css=require('node:fs').readFileSync(require('node:path').join(__dirname,'../web/style.css'),'utf8');
-  assert.match(css,/:root,html,body,main,#content,#tables,#print-document,.print-sheet\s*\{\s*background:#fff!important/);
-  assert.match(css,/\.print-grid tbody tr\.print-slot-row\{height:21mm!important/);
-  assert.match(css,/\.print-grid \.print-lesson strong\{font-size:11px!important/);
  }finally{await a.close();}
 });
 
@@ -262,4 +231,119 @@ test('0.9.7: indicadores compactos, avisos próximos à geração e aulas travad
   assert(locked.querySelector('.lesson-lock-badge').textContent.includes('Travada'));
   assert($('#schedule-status').textContent.includes('1'));
  }finally{await a.close();}
+});
+
+test('0.9.8: período pode ser excluído com confirmação e ponto de recuperação',async()=>{
+ const a=await app();try{
+  const {w,$,store}=a;
+  $('[data-page="periods"]').click();await tick();
+  assert.equal($('[data-delete-period="2027.1"]').disabled,true,'o único período não pode ser excluído');
+  $('#new-period').value='2027.2';$('#add-period').click();await tick();
+  assert.deepEqual(store.read().periods,['2027.1','2027.2']);
+  assert.equal($('[data-delete-period="2027.2"]').disabled,false);
+  $('[data-delete-period="2027.2"]').click();await tick();
+  assert(w.document.querySelector('.cel-confirm').textContent.includes('2027.2'));
+  w.document.querySelector('.cel-confirm [data-choice="cancel"]').click();await tick();
+  assert.deepEqual(store.read().periods,['2027.1','2027.2'],'cancelar não exclui nada');
+  $('[data-delete-period="2027.2"]').click();await tick();
+  w.document.querySelector('.cel-confirm [data-choice="yes"]').click();await tick();
+  const after=store.read();
+  assert.deepEqual(after.periods,['2027.1']);
+  assert.equal(after.plans.length,1);assert.equal(after.offers.length,3);
+  assert.equal($('#period').value,'2027.1');
+  assert(store.history().some(h=>h.reason.includes('Antes de excluir o período 2027.2')));
+ }finally{await a.close();}
+});
+
+test('0.9.8: disciplina exige código válido e único',async()=>{
+ const a=await app();try{
+  const {w,$,store}=a;
+  const submit=()=>$('#form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
+  $('[data-page="subjects"]').click();await tick();
+  assert(w.document.querySelector('#content thead').textContent.includes('Código'));
+  assert(w.document.querySelector('#content tbody').textContent.includes('Sem código'));
+  const total=store.read().subjects.length;
+  $('#add').click();
+  $('input[name="name"]').value='Física I';
+  assert($('input[name="code"]').required);
+  $('input[name="code"]').value='   ';submit();await tick();
+  assert($('#error').textContent.includes('Informe o código'));
+  $('input[name="code"]').value='FÍS1';submit();await tick();
+  assert($('#error').textContent.includes('Código inválido'));
+  assert.equal(store.read().subjects.length,total,'nada é salvo com código ausente ou inválido');
+  $('input[name="code"]').value=' fis 101 ';submit();await tick();
+  const saved=store.read().subjects.find(x=>x.name==='Física I');
+  assert.equal(saved.code,'FIS 101');
+  $('#add').click();
+  $('input[name="name"]').value='Física II';$('input[name="code"]').value='fis 101';submit();await tick();
+  assert($('#error').textContent.includes('já está em uso'));
+  assert(!store.read().subjects.some(x=>x.name==='Física II'));
+  assert(w.document.querySelector('#content tbody').textContent.includes('FIS 101'));
+ }finally{await a.close();}
+});
+
+test('0.9.8: PDF no modelo de horário agrupa blocos, usa maiúsculas e lista disciplinas',async()=>{
+ const a=await app(d=>{d.subjects[0].code='alg-1';d.subjects[1].code='mat101';});try{const {$}=a;
+  const doc=$('#print-document');
+  assert.match(doc.textContent,/HORÁRIO - CIÊNCIA DA COMPUTAÇÃO - SEMESTRE LETIVO - 2027\.1/);
+  assert.equal(doc.textContent.includes('Quadro de horários'),false);
+  assert.equal(doc.querySelectorAll('.pdf-schedule').length,2);
+  const sheets=doc.querySelectorAll('.pdf-sheet'),sheet=sheets[0];
+  assert.equal(sheet.querySelector('.pdf-label').textContent,'TURMA:');
+  assert.equal(sheet.querySelector('.pdf-turma').textContent,'I SEMESTRE - COMPUTAÇÃO A');
+  assert.equal(sheets[1].querySelector('.pdf-turma').textContent,'V SEMESTRE - COMPUTAÇÃO B');
+  assert.equal(sheet.querySelectorAll('.pdf-block-row').length,3,'3 linhas de bloco, não 6 de 2 em 2');
+  assert.equal(sheet.querySelectorAll('td[rowspan]').length,0);
+  assert.equal(sheet.querySelectorAll('.pdf-split').length,0);
+  assert.deepEqual([...sheet.querySelectorAll('.pdf-block-row:first-child .pdf-times span')].map(x=>x.textContent),['07:30–08:20','08:20–09:10']);
+  assert.equal([...sheet.querySelectorAll('.pdf-full .pdf-name strong')].filter(x=>x.textContent==='ALGORITMOS').length,1,'a dupla aparece uma única vez');
+  assert.equal(doc.textContent.includes('Algoritmos'),false,'tudo em maiúsculas');
+  assert.equal(doc.textContent.includes('Ana Oliveira'),false);
+  assert.deepEqual([...sheet.querySelectorAll('.pdf-subjects thead th')].map(x=>x.textContent),['CÓDIGO','DISCIPLINA','PROFESSOR (A)']);
+  const rows=[...sheet.querySelectorAll('.pdf-subjects tbody tr')].map(tr=>[...tr.children].map(td=>td.textContent));
+  assert.deepEqual(rows,[['ALG-1','ALGORITMOS','ANA OLIVEIRA'],['MAT101','CÁLCULO I','CARLOS SANTOS']]);
+ }finally{await a.close();}
+});
+
+test('0.9.8: disciplina antiga sem código aparece com traço no quadro do PDF',async()=>{
+ const a=await app();try{
+  const first=a.$('#print-document .pdf-subjects tbody tr');
+  assert.equal(first.children[0].textContent,'—');
+  assert.equal(first.children[1].textContent,'ALGORITMOS');
+ }finally{await a.close();}
+});
+
+test('0.9.8: aulas simples no mesmo bloco aparecem em metades separadas',async()=>{
+ const a=await app(d=>{d.plans[0].lessons=[
+  {id:'a',offer:'o1',day:0,slot:0,length:1,room:'r1',locked:false},
+  {id:'b',offer:'o2',day:0,slot:1,length:1,room:'r1',locked:false},
+  {id:'c',offer:'o2',day:1,slot:3,length:1,room:'r1',locked:false}];});try{
+  const split=a.$('#print-document .pdf-sheet').querySelectorAll('.pdf-split');
+  assert.equal(split.length,2);
+  assert.deepEqual([...split[0].querySelectorAll('.pdf-half')].map(x=>x.textContent),['ALGORITMOS','CÁLCULO I']);
+  assert.deepEqual([...split[1].querySelectorAll('.pdf-half')].map(x=>x.textContent),['','CÁLCULO I']);
+ }finally{await a.close();}
+});
+
+test('0.9.8: PDF por professor identifica a turma de cada aula',async()=>{
+ const a=await app();try{const {w,$}=a;
+  $('#view').value='teacher';$('#view').dispatchEvent(new w.Event('change',{bubbles:true}));await tick();
+  const sheet=$('#print-document .pdf-sheet');
+  assert.equal(sheet.querySelector('.pdf-label').textContent,'PROFESSOR(A):');
+  assert.equal(sheet.querySelector('.pdf-turma').textContent,'ANA OLIVEIRA');
+  const names=[...sheet.querySelectorAll('.pdf-full .pdf-name')].map(x=>[x.querySelector('strong').textContent,x.querySelector('small').textContent]);
+  assert.deepEqual(names.find(n=>n[0]==='ALGORITMOS'),['ALGORITMOS','COMPUTAÇÃO A']);
+  assert.deepEqual(names.find(n=>n[0]==='BANCO DE DADOS'),['BANCO DE DADOS','COMPUTAÇÃO B']);
+  assert.equal(sheet.querySelector('.pdf-subjects tbody tr').children[1].textContent,'ALGORITMOS (COMPUTAÇÃO A)');
+ }finally{await a.close();}
+});
+
+test('0.9.8: CSS de impressão define A4 branco, linhas de bloco e nomes em negrito',()=>{
+ const css=fs.readFileSync(path.join(__dirname,'../web/style.css'),'utf8');
+ assert.match(css,/@page\s*\{\s*size:A4 landscape/);
+ assert.match(css,/:root,html,body,main,#content,#tables,#print-document,\.pdf-sheet\s*\{\s*background:#fff!important/);
+ assert.match(css,/tr\.pdf-block-row\{height:24mm/);
+ assert.match(css,/\.pdf-name strong\{display:block;font-size:14px;font-weight:700/);
+ assert.match(css,/\.pdf-turma\{[^}]*color:#c00000/);
+ assert.match(css,/\.pdf-turma-row th[^{]*\.pdf-subjects thead th\{background:#cfe5f7!important/);
 });
