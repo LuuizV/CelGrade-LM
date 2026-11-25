@@ -77,13 +77,13 @@ test('0.8.5: prévia do arraste une título e aviso sem sobreposição',async()=
  }finally{await a.close();}
 });
 
-test('0.9.0: controles, tarde desabilitada e visual de impressão',async()=>{
+test('0.9.0: controles, tarde habilitada e visual de impressão',async()=>{
  const a=await app();try{const {w,$,store}=a;
   assert(!w.document.querySelector('footer'));
   assert.equal($('#rename-plan').closest('.command-group').querySelector('small').textContent,'GERAÇÃO');
   assert.equal($('#delete-plan').closest('.command-group').querySelector('small').textContent,'ALTERNATIVAS');
-  assert.equal(w.document.querySelectorAll('.afternoon-switch input:disabled').length,2);
-  assert.equal(w.document.querySelectorAll('.cohort-actions button:disabled').length,4);
+  assert.equal(w.document.querySelectorAll('.afternoon-switch').length,0);
+  assert.equal(w.document.querySelectorAll('.cohort-actions button:disabled').length,2);
   assert($('#print-document').textContent.includes('Quadro de horários'));
   assert.equal($('#tables').textContent.includes('CelGrade LM · Grade'),false);
   assert.equal($('#tables').textContent.includes(' · dupla'),false);

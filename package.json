@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc && node scripts/build-web.cjs",
     "start": "npm run build && electron .",
-    "test": "npm run build && node --test tests/core.cjs tests/regression.cjs tests/dom.cjs tests/updates.cjs tests/changelog.cjs",
+    "test": "npm run build && node --test tests/core.cjs tests/regression.cjs tests/dom.cjs tests/updates.cjs tests/changelog.cjs tests/vespertina.cjs",
     "package:win": "npm run build && node scripts/generate-icon.cjs && electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {

@@ -223,7 +223,7 @@ function renderSchedule() {
           '<span class="status-pill" title="Blocos fixos">'+navIcons.lock+'<strong>'+p.lessons.filter(l=>l.locked).length+'</strong> blocos fixos</span>'+
           '<details id="gap-details" class="status-gaps"><summary class="status-pill" title="Ver janelas nas turmas">'+navIcons.gaps+'<strong>'+gaps.length+'</strong> janelas <span class="gap-chevron" aria-hidden="true">⌄</span></summary>'+
           '<div class="status-gaps-menu"><p class="muted">Janelas são horários vagos entre duas aulas da mesma turma no mesmo dia. Não são conflitos.</p>'+
-          (gaps.length?'<div class="record-chips">'+gaps.map(x=>'<span class="record-chip">'+esc(db.cohorts.find(c=>c.id===x.cohort)?.name||'Turma')+' · '+esc(days[x.day])+' · '+esc(Core.times[x.slot])+'</span>').join('')+'</div>':'<p class="muted">Nenhuma janela nesta alternativa.</p>')+'</div></details></div></div>';
+          (gaps.length?'<div class="record-chips">'+gaps.map(x=>'<span class="record-chip">'+esc(db.cohorts.find(c=>c.id===x.cohort)?.name||'Turma')+' · '+esc(days[x.day])+' · '+esc(Core.shiftTimes(Boolean(x.afternoon))[x.slot])+'</span>').join('')+'</div>':'<p class="muted">Nenhuma janela nesta alternativa.</p>')+'</div></details></div></div>';
         $('#schedule-diagnostics').innerHTML = hard.length||missing.length?
           '<section class="diagnostics" role="status"><h3>⚠ Atenção à grade · '+(hard.length+missing.length)+' aviso(s)</h3>'+[...hard,...missing].map(s=>'<p>'+esc(s)+'</p>').join('')+'</section>':'';
         $('#report').innerHTML =
@@ -240,7 +240,7 @@ function renderSchedule() {
     renderTables();
 }
 // Documento independente da interface: grade limpa para PDF e impressão A4.
-function printDocument(groups: {id: string; title: string; lessons: Lesson[]}[], p: Plan, mode: string): string {
+function printDocument(groups: {id: string; title: string; lessons: Lesson[]; afternoon: boolean}[], p: Plan, mode: string): string {
     const lessonList = (lessons: Lesson[], day: number, slot: number) => lessons
         .filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length)
         .sort((a,b) => a.id.localeCompare(b.id));
@@ -248,7 +248,10 @@ function printDocument(groups: {id: string; title: string; lessons: Lesson[]}[],
     const header = '<div class="print-document-header"><div class="print-kicker">PLANEJAMENTO ACADÊMICO</div>' +
         '<h1>Quadro de horários</h1><p>Período letivo ' + esc(period) + ' <span>·</span> ' + esc(p.name) + '</p></div>';
     const sheets = groups.map(g => {
-        const rows = Core.times.map((time,slot) => {
+        const slotTimes = Core.shiftTimes(g.afternoon);
+        const breakSlot = g.afternoon ? 4 : 2;
+        const breakLabel = g.afternoon ? '16:30–16:40' : '09:10–09:20';
+        const rows = slotTimes.map((time,slot) => {
             const cells = days.map((_,day) => {
                 const active = lessonList(g.lessons,day,slot);
                 const contents = active.length ? active.map(l => {
@@ -261,8 +264,8 @@ function printDocument(groups: {id: string; title: string; lessons: Lesson[]}[],
                 }).join('') : '<span class="print-empty">—</span>';
                 return '<td>' + contents + '</td>';
             }).join('');
-            const interval = slot === 2
-                ? '<tr class="print-interval" aria-label="Intervalo"><td colspan="6">INTERVALO <span>09:10–09:20</span></td></tr>'
+            const interval = slot === breakSlot
+                ? '<tr class="print-interval" aria-label="Intervalo"><td colspan="6">INTERVALO <span>' + breakLabel + '</span></td></tr>'
                 : '';
             return interval + '<tr class="print-slot-row"><th scope="row">' + esc(time) + '</th>' + cells + '</tr>';
         }).join('');
@@ -289,16 +292,54 @@ function renderTables() {
         id: string;
         title: string;
         lessons: Lesson[];
+        afternoon: boolean;
     }[] = [];
-    if (mode === 'cohort')
-        groups = db.cohorts.filter(c => db.offers.some(o => o.cohort === c.id && o.period === period)).map(c => ({ id: c.id, title: c.name + ' · ' + c.stage + 'º semestre', lessons: p.lessons.filter(l => db.offers.find(o => o.id === l.offer)?.cohort === c.id) }));
-    if (mode === 'teacher')
-        groups = db.teachers.filter(t => p.lessons.some(l => db.offers.find(o => o.id === l.offer)?.teacher === t.id)).map(t => ({ id: t.id, title: t.name, lessons: p.lessons.filter(l => db.offers.find(o => o.id === l.offer)?.teacher === t.id) }));
-    if (mode === 'graduate')
-        groups = Core.graduateReport(db, p).map(g => ({ id: g.id, title: g.name + (g.ok ? '' : ' · atendimento parcial'), lessons: p.lessons.filter(l => g.offers.includes(l.offer)) }));
+    const lessonIsAfternoon = (l: Lesson) => Core.isAfternoon(db.offers.find(o => o.id === l.offer));
+    if (mode === 'cohort') {
+        for (const c of db.cohorts) {
+            if (!db.offers.some(o => o.cohort === c.id && o.period === period && !Core.isAfternoon(o))) continue;
+            const morningLessons = p.lessons.filter(l => {
+                const o = db.offers.find(x => x.id === l.offer);
+                return o?.cohort === c.id && !Core.isAfternoon(o);
+            });
+            groups.push({ id: c.id, title: c.name + ' · ' + c.stage + 'º semestre', lessons: morningLessons, afternoon: false });
+        }
+        if (db.offers.some(o => o.period === period && Core.isAfternoon(o))) {
+            groups.push({ id: '__afternoon__', title: 'Grade Vespertina', lessons: p.lessons.filter(lessonIsAfternoon), afternoon: true });
+        }
+    }
+    if (mode === 'teacher') {
+        for (const t of db.teachers) {
+            const tLessons = p.lessons.filter(l => db.offers.find(o => o.id === l.offer)?.teacher === t.id);
+            if (!tLessons.length) continue;
+            const morning = tLessons.filter(l => !lessonIsAfternoon(l));
+            const afternoon = tLessons.filter(lessonIsAfternoon);
+            if (morning.length)
+                groups.push({ id: t.id, title: t.name, lessons: morning, afternoon: false });
+            if (afternoon.length)
+                groups.push({ id: t.id, title: t.name + ' · Vespertino', lessons: afternoon, afternoon: true });
+        }
+    }
+    if (mode === 'graduate') {
+        for (const g of Core.graduateReport(db, p)) {
+            const gLessons = p.lessons.filter(l => g.offers.includes(l.offer));
+            const morning = gLessons.filter(l => !lessonIsAfternoon(l));
+            const afternoon = gLessons.filter(lessonIsAfternoon);
+            if (morning.length || !afternoon.length)
+                groups.push({ id: g.id, title: g.name + (g.ok ? '' : ' · atendimento parcial'), lessons: morning, afternoon: false });
+            if (afternoon.length)
+                groups.push({ id: g.id, title: g.name + ' · Vespertino' + (g.ok ? '' : ' · atendimento parcial'), lessons: afternoon, afternoon: true });
+        }
+    }
     const printHeader = '<div id="print-header"><div class="print-eyebrow">PLANEJAMENTO ACADÊMICO</div><h1>Quadro de horários</h1><p>Período letivo ' + esc(period) + ' · ' + esc(p.name) + '</p></div>';
     $('#tables').classList.add('schedule-tables');
-    $('#tables').innerHTML = groups.map(g => `<article class="panel"><div class="group-heading"><h2>${esc(g.title)} <span class="tag">${period}</span></h2>${mode==='cohort'?`<div class="cohort-actions"><button type="button" data-undo-cohort="${esc(g.id)}" ${hasCohortUndo(g.id)?'':'disabled'}>${navIcons.undo}Desfazer movimento</button><label class="afternoon-switch"><input type="checkbox" disabled> Habilitar aulas à tarde</label><button type="button" disabled>${navIcons.add}Adicionar aula à tarde</button></div>`:''}</div>${mode==='cohort'?'<p class="afternoon-note">Aulas à tarde: em breve — aguardando definição dos horários.</p>':''}${mode === 'graduate' ? graduateNote(g.id, p) : ''}<div class="print-warning">${[...Core.hardIssues(db, p.lessons), ...Core.completeness(db, p)].length ? 'RASCUNHO — esta grade contém conflitos ou cargas incompletas.' : ''}</div><div class="scroll"><table class="grid"><thead><tr><th>Horário</th>${days.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${Core.times.map((t, slot) => `${slot === 2 ? '<tr class="break"><td colspan="6">09:10–09:20 · INTERVALO</td></tr>' : ''}<tr><td class="time">${t}</td>${days.map((_, day) => { const ls = g.lessons.filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length); return `<td data-cohort="${mode === 'cohort' ? esc(g.id) : ''}" data-day="${day}" data-slot="${slot}">${ls.map(l => { const o = db.offers.find(o => o.id === l.offer)!; return `<div class="lesson subject-${subjectTone(o.subject)} ${l.locked ? 'locked' : ''}" tabindex="0" role="button" aria-label="${l.locked ? 'Aula travada. Esta posição será preservada. Botão direito para alterar sala' : 'Selecionar aula; botão direito ou Shift+F10 para alterar sala'}" draggable="${mode === 'cohort' && !l.locked}" data-lesson="${l.id}">${slot === l.slot ? `<button data-lock="${l.id}" title="${l.locked ? 'Destravar aula' : 'Fixar aula'}">${navIcons[l.locked ? 'lock' : 'unlock']}</button>` : ''}<b>${esc(name('subjects', o.subject))}</b><small>${esc(name('teachers', o.teacher))}<br>${esc(name('rooms', l.room))}</small>${l.locked && slot === l.slot ? '<span class="lesson-lock-badge">Travada</span>' : ''}</div>`; }).join('') || '<div class="free">—</div>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div></article>`).join('') || '<div class="panel">Nenhum registro para esta visualização.</div>';
+    $('#tables').innerHTML = groups.map(g => {
+        const slotTimes = Core.shiftTimes(g.afternoon);
+        const breakSlot = g.afternoon ? 4 : 2;
+        const breakLabel = g.afternoon ? '16:30–16:40 · INTERVALO' : '09:10–09:20 · INTERVALO';
+        const shiftKey = g.afternoon ? 'afternoon' : 'morning';
+        return `<article class="panel"><div class="group-heading"><h2>${esc(g.title)} <span class="tag">${period}</span></h2>${mode==='cohort'?`<div class="cohort-actions"><button type="button" data-undo-cohort="${esc(g.id)}" ${hasCohortUndo(g.id)?'':'disabled'}>${navIcons.undo}Desfazer movimento</button></div>`:''}</div>${mode === 'graduate' ? graduateNote(g.id, p) : ''}<div class="print-warning">${[...Core.hardIssues(db, p.lessons), ...Core.completeness(db, p)].length ? 'RASCUNHO — esta grade contém conflitos ou cargas incompletas.' : ''}</div><div class="scroll"><table class="grid"><thead><tr><th>Horário</th>${days.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${slotTimes.map((t, slot) => `${slot === breakSlot ? `<tr class="break"><td colspan="6">${breakLabel}</td></tr>` : ''}<tr><td class="time">${t}</td>${days.map((_, day) => { const ls = g.lessons.filter(l => l.day === day && slot >= l.slot && slot < l.slot + l.length); return `<td data-cohort="${mode === 'cohort' ? esc(g.id) : ''}" data-shift="${shiftKey}" data-day="${day}" data-slot="${slot}">${ls.map(l => { const o = db.offers.find(o => o.id === l.offer)!; return `<div class="lesson subject-${subjectTone(o.subject)} ${l.locked ? 'locked' : ''}" tabindex="0" role="button" aria-label="${l.locked ? 'Aula travada. Esta posição será preservada. Botão direito para alterar sala' : 'Selecionar aula; botão direito ou Shift+F10 para alterar sala'}" draggable="${mode === 'cohort' && !l.locked}" data-lesson="${l.id}">${slot === l.slot ? `<button data-lock="${l.id}" title="${l.locked ? 'Destravar aula' : 'Fixar aula'}">${navIcons[l.locked ? 'lock' : 'unlock']}</button>` : ''}<b>${esc(name('subjects', o.subject))}</b><small>${esc(name('teachers', o.teacher))}<br>${esc(name('rooms', l.room))}</small>${l.locked && slot === l.slot ? '<span class="lesson-lock-badge">Travada</span>' : ''}</div>`; }).join('') || '<div class="free">—</div>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div></article>`;
+    }).join('') || '<div class="panel">Nenhum registro para esta visualização.</div>';
     $('#tables').insertAdjacentHTML('beforeend', printDocument(groups, p, mode));
     $$('[data-undo-cohort]').forEach(b => b.onclick = () => undoMove(b.dataset.undoCohort!));
     $$('[data-lesson]').forEach(el => {
@@ -334,7 +375,7 @@ function renderTables() {
             const offer = db.offers.find(o => o.id === lesson?.offer);
             const title = offer ? name('subjects', offer.subject) : 'Aula';
             const detail = days[Number(cell.dataset.day)] + ' · ' +
-                Core.times[Number(cell.dataset.slot)] + '\n' + dropText(r);
+                Core.shiftTimes(cell.dataset.shift === 'afternoon')[Number(cell.dataset.slot)] + '\n' + dropText(r);
             const tip = $('#tip');
             if (tip.dataset.dragTitle !== title || tip.dataset.dragDetail !== detail) {
                 tip.innerHTML = '<div class="drag-tip-title">' + esc(title) + '</div>' +
@@ -366,7 +407,8 @@ function graduateNote(id: string, p: Plan) { const r = Core.graduateReport(db, p
 function dropText(r: ReturnType<typeof Core.move>) { return r.red.length ? describeMovement(r.red, 'Quadro de horários') : r.yellow.length ? 'Movimento exige confirmação:\n' + r.yellow.join('\n') : 'Movimento permitido'; }
 function checkDrop(cell: HTMLElement) { const cached = dropCache.get(cell); if (cached)
     return cached; const p = plan()!, l = p.lessons.find(x => x.id === dragId); if (!l)
-    return { plan: p, red: ['Aula não encontrada'], yellow: [] }; const o = db.offers.find(x => x.id === l.offer)!; if (cell.dataset.cohort !== o.cohort)
+    return { plan: p, red: ['Aula não encontrada'], yellow: [] }; const o = db.offers.find(x => x.id === l.offer)!; const afternoon = Core.isAfternoon(o); if (cell.dataset.shift !== (afternoon ? 'afternoon' : 'morning'))
+    return { plan: p, red: ['Mova dentro do mesmo turno (matutino ou vespertino).'], yellow: [] }; if (!afternoon && cell.dataset.cohort !== o.cohort)
     return { plan: p, red: ['Mova dentro da mesma turma. A oferta não muda de turma pelo arraste.'], yellow: [] }; return Core.move(db, p, l.id, +cell.dataset.day!, +cell.dataset.slot!, l.room); }
 function paintTargets() { dropCache.clear(); $$('td[data-cohort]').forEach(c => { c.classList.remove('red', 'yellow', 'green'); const r = checkDrop(c); dropCache.set(c, r); c.classList.add(r.red.length ? 'red' : r.yellow.length ? 'yellow' : 'green'); c.title = dropText(r); }); $$('[data-lesson]').forEach(el => el.classList.toggle('selected', el.dataset.lesson === dragId)); }
 function clearDrag() { dragId = ''; dropCache.clear(); $('#tip').hidden = true; delete $('#tip').dataset.dragTitle; delete $('#tip').dataset.dragDetail; $$('td[data-cohort]').forEach(c => { c.classList.remove('red', 'yellow', 'green'); c.removeAttribute('title'); }); $$('.lesson.selected').forEach(c => c.classList.remove('selected')); }
@@ -391,7 +433,7 @@ async function applyDrop(cell: HTMLElement) {
     try {
         await save(n, r.yellow.length ? 'Antes de movimento com exceção' : 'Antes de mover aula');
         const changed = r.plan.lessons.find(l=>{const old=previous.lessons.find(x=>x.id===l.id);return old&&(l.day!==old.day||l.slot!==old.slot||l.room!==old.room);});
-        undo.push({plan:previous,cohort:db.offers.find(o=>o.id===changed?.offer)?.cohort||''});
+        const changedOffer=db.offers.find(o=>o.id===changed?.offer); undo.push({plan:previous,cohort:Core.isAfternoon(changedOffer)?'__afternoon__':(changedOffer?.cohort||'')});
         if (undo.length > 30)
             undo.shift();
         render();
@@ -408,7 +450,7 @@ async function undoMove(cohort: string) {
     if(index<0){notice('Não há movimento dessa turma para desfazer.');return;}
     const n=structuredClone(db), current=n.plans.find(p=>p.id===planId);
     if(!current)return;
-    const ids=new Set(n.offers.filter(o=>o.cohort===cohort).map(o=>o.id));
+    const ids=new Set(n.offers.filter(o=>cohort==='__afternoon__'?Core.isAfternoon(o):(!Core.isAfternoon(o)&&o.cohort===cohort)).map(o=>o.id));
     const previous=undo[index].plan;
     current.lessons=current.lessons.filter(l=>!ids.has(l.offer)).concat(previous.lessons.filter(l=>ids.has(l.offer)));
     if(Core.hardIssues(n,current.lessons).length>Core.hardIssues(db,plan()!.lessons).length){
@@ -482,9 +524,12 @@ function renderList() {
             let body='',subtitle='',badge='';
             if('subjects' in x){subtitle='Formando · '+period;badge='<span class="record-chip '+(x.active?'chip-ok':'chip-muted')+'">'+(x.active?'Ativo':'Inativo')+'</span>';
                 body='<div class="record-card-label">DISCIPLINAS NECESSÁRIAS</div>'+chips(x.subjects.map(s=>name('subjects',s)));}
-            else if('load' in x){subtitle='Oferta acadêmica · '+period;const cohort=db.cohorts.find(c=>c.id===x.cohort);
-                body='<div class="record-card-pair"><div><span>PROFESSOR</span><strong>'+esc(name('teachers',x.teacher))+'</strong></div><div><span>TURMA</span><strong>'+esc(name('cohorts',x.cohort))+'</strong></div></div>'+
-                chips([(cohort?cohort.stage+'º semestre':'Semestre não encontrado'),x.load+' aulas semanais']);}
+            else if('load' in x){subtitle='Oferta acadêmica · '+period;badge=x.afternoon?'<span class="record-chip chip-ok">Vespertina</span>':'';const cohort=x.cohort?db.cohorts.find(c=>c.id===x.cohort):undefined;
+                body=x.afternoon
+                    ? '<div class="record-card-pair"><div><span>PROFESSOR</span><strong>'+esc(name('teachers',x.teacher))+'</strong></div><div><span>SALA</span><strong>'+esc(name('rooms',x.room||''))+'</strong></div></div>'+
+                      chips([x.load+' aulas semanais','Vespertina (13:00–18:20)'])
+                    : '<div class="record-card-pair"><div><span>PROFESSOR</span><strong>'+esc(name('teachers',x.teacher))+'</strong></div><div><span>TURMA</span><strong>'+esc(name('cohorts',x.cohort))+'</strong></div></div>'+
+                      chips([(cohort?cohort.stage+'º semestre':'Semestre não encontrado'),x.load+' aulas semanais','Matutina (07:30–12:40)']);}
             else if('available' in x){subtitle='Professor · '+period;badge='<span class="record-chip chip-ok">'+x.available.filter(Boolean).length+' horários</span>';
                 const subjects=[...new Set(db.offers.filter(o=>o.teacher===x.id&&o.period===period).map(o=>name('subjects',o.subject)))];
                 body='<div class="record-card-label">DISCIPLINAS MINISTRADAS</div>'+(subjects.length?chips(subjects):'<p class="muted">Sem ofertas neste período.</p>')+
@@ -541,12 +586,24 @@ function edit(id: string | null) {
     if (page === 'rooms') html += field('module', 'Módulo', x.module || '');
     if (page === 'rooms' || page === 'teachers') {
         html += '<p>Disponibilidade semanal — marque quando pode receber aulas</p><div class="actions"><button type="button" id="all">Marcar todos</button><button type="button" id="none">Desmarcar todos</button></div><table class="availability"><tr><th>Horário</th>' + days.map(d => '<th>' + d + '</th>').join('') + '</tr>' + Core.times.map((t, slot) => '<tr><th>' + t + '</th>' + days.map((d, day) => `<td><input type="checkbox" name="available" aria-label="${d} ${t}" value="${day * 6 + slot}" ${(x.available || Array(30).fill(1))[day * 6 + slot] ? 'checked' : ''}></td>`).join('') + '</tr>').join('') + '</table>';
-
+    }
+    if (page === 'teachers') {
+        const afternoonAvail = Core.teacherAfternoonAvailable(x);
+        html += '<p>Disponibilidade vespertina (13:00–18:20) — marque quando pode dar aulas à tarde</p><div class="actions"><button type="button" id="all-afternoon">Marcar todos (tarde)</button><button type="button" id="none-afternoon">Desmarcar todos (tarde)</button></div><table class="availability"><tr><th>Horário</th>' + days.map(d => '<th>' + d + '</th>').join('') + '</tr>' + Core.afternoonTimes.map((t, slot) => '<tr><th>' + t + '</th>' + days.map((d, day) => `<td><input type="checkbox" name="afternoonAvailable" aria-label="${d} ${t}" value="${day * 6 + slot}" ${afternoonAvail[day * 6 + slot] ? 'checked' : ''}></td>`).join('') + '</tr>').join('') + '</table>';
     }
     if (page === 'cohorts')
         html += field('stage', 'Semestre do curso', x.stage || 1, 'number') + select('room', 'Sala preferencial', [{ id: '', name: 'Automática' }, ...db.rooms], x.room || '');
-    if (page === 'offers')
-        html += select('subject', 'Disciplina', db.subjects.map(s => ({ id: s.id, name: Core.subjectLabel(s) })), x.subject) + select('teacher', 'Professor', db.teachers, x.teacher) + select('cohort', 'Turma', db.cohorts, x.cohort) + field('load', 'Aulas semanais de 50 minutos', x.load || 2, 'number') + `<p class="muted">Oferta para ${period}. A disciplina pode ter outras ofertas em outras turmas.</p>`;
+    if (page === 'offers') {
+        const isAft = Boolean(x.afternoon);
+        const roomItems = db.rooms.map(r => ({ id: r.id, name: Core.roomLabel(r) }));
+        html += select('subject', 'Disciplina', db.subjects.map(s => ({ id: s.id, name: Core.subjectLabel(s) })), x.subject)
+            + select('teacher', 'Professor', db.teachers, x.teacher)
+            + `<label><input type="checkbox" name="afternoon" id="offer-afternoon" ${isAft ? 'checked' : ''}> Vespertina (13:00–18:20)</label>`
+            + `<label id="offer-cohort-wrap" ${isAft ? 'hidden style="display:none"' : ''}>Turma<select name="cohort" ${isAft ? 'disabled' : 'required'}>${options(db.cohorts, x.cohort || '')}</select></label>`
+            + `<label id="offer-room-wrap" ${isAft ? '' : 'hidden style="display:none"'}>Sala<select name="room" ${isAft ? 'required' : 'disabled'}>${options(roomItems, x.room || '')}</select></label>`
+            + field('load', 'Aulas semanais de 50 minutos', x.load || 2, 'number')
+            + `<p class="muted">Oferta para ${period}. Quando "Vespertina" estiver marcada, a disciplina vai para a grade da tarde na sala escolhida, sem vínculo com turma.</p>`;
+    }
     if (page === 'graduates')
         html += `<label><input type="checkbox" name="active" ${x.active !== false ? 'checked' : ''}> Considerar no planejamento de ${period}</label><h3>Disciplinas necessárias</h3><div class="checks">${db.subjects.map(s => `<label><input type="checkbox" name="subject" value="${s.id}" ${(x.subjects || []).includes(s.id) ? 'checked' : ''}> ${esc(Core.subjectLabel(s))}</label>`).join('')}</div>`;
     $('#fields').innerHTML = html;
@@ -554,6 +611,28 @@ function edit(id: string | null) {
         $('#all').onclick = () => document.querySelectorAll<HTMLInputElement>('[name=available]').forEach(x => x.checked = true);
     if ($('#none'))
         $('#none').onclick = () => document.querySelectorAll<HTMLInputElement>('[name=available]').forEach(x => x.checked = false);
+    if ($('#all-afternoon'))
+        $('#all-afternoon').onclick = () => document.querySelectorAll<HTMLInputElement>('[name=afternoonAvailable]').forEach(x => x.checked = true);
+    if ($('#none-afternoon'))
+        $('#none-afternoon').onclick = () => document.querySelectorAll<HTMLInputElement>('[name=afternoonAvailable]').forEach(x => x.checked = false);
+    if ($('#offer-afternoon')) {
+        const toggleOfferShift = () => {
+            const isAft = $<HTMLInputElement>('#offer-afternoon').checked;
+            const cohortWrap = $('#offer-cohort-wrap'), roomWrap = $('#offer-room-wrap');
+            const cohortSel = cohortWrap.querySelector<HTMLSelectElement>('select')!;
+            const roomSel = roomWrap.querySelector<HTMLSelectElement>('select')!;
+            cohortWrap.hidden = isAft;
+            cohortWrap.style.display = isAft ? 'none' : '';
+            cohortSel.disabled = isAft;
+            cohortSel.required = !isAft;
+            roomWrap.hidden = !isAft;
+            roomWrap.style.display = !isAft ? 'none' : '';
+            roomSel.disabled = !isAft;
+            roomSel.required = isAft;
+        };
+        $('#offer-afternoon').onchange = toggleOfferShift;
+        toggleOfferShift();
+    }
     $<HTMLDialogElement>('#editor').showModal();
 }
 async function remove(id: string) { if (!await confirmInApp('Excluir cadastro', 'Registros usados em ofertas ou grades não podem ser excluídos.', 'Excluir cadastro', true))
@@ -581,13 +660,23 @@ $('#form').onsubmit = async (e) => { e.preventDefault(); if (renamingPlan) {
 } const f = new FormData(e.target as HTMLFormElement), n = structuredClone(db), rows = (n as any)[page] as any[], old = rows.find(x => x.id === editing); const x: any = { id: editing || Core.uid() }; if (page !== 'offers')
     x.name = String(f.get('name')).trim(); if (page === 'rooms' || page === 'teachers') {
     x.available = Array.from({ length: 30 }, (_, i) => f.getAll('available').includes(String(i)) ? 1 : 0);
+    if (page === 'teachers') {
+        x.afternoonAvailable = Array.from({ length: 30 }, (_, i) => f.getAll('afternoonAvailable').includes(String(i)) ? 1 : 0);
+    }
     if (page === 'rooms') { x.module=String(f.get('module') || '').trim(); if (!x.module) { $('#error').textContent='Informe o módulo da sala.'; return; } }
 } if (page === 'cohorts') {
     x.stage = Number(f.get('stage'));
     x.room = f.get('room');
 } if (page === 'offers') {
-    for (const k of ['subject', 'teacher', 'cohort'])
-        x[k] = f.get(k);
+    x.subject = f.get('subject');
+    x.teacher = f.get('teacher');
+    x.afternoon = f.has('afternoon');
+    if (x.afternoon) {
+        x.cohort = '';
+        x.room = f.get('room');
+    } else {
+        x.cohort = f.get('cohort');
+    }
     x.load = Number(f.get('load'));
     x.period = old?.period || period;
 } if (page === 'graduates') {
@@ -814,7 +903,7 @@ function openRoomEditor(id: string) {
         if (Core.signature(previous) === Core.signature(result.plan)) { dialog.close(); return; }
         committing = true; cancel.disabled = true; submit.disabled = true; select.disabled = true;
         const n = structuredClone(db); n.plans = n.plans.map(p => p.id === selectedPlan ? result.plan : p);
-        try { await save(n,'Antes de alterar sala'); undo.push({plan:previous,cohort:db.offers.find(o=>o.id===lesson.offer)?.cohort||''}); if(undo.length>30)undo.shift(); dialog.close(); render(); notice('Sala alterada. O horário e a turma foram mantidos.'); }
+        try { await save(n,'Antes de alterar sala'); const editedOffer=db.offers.find(o=>o.id===lesson.offer); undo.push({plan:previous,cohort:Core.isAfternoon(editedOffer)?'__afternoon__':(editedOffer?.cohort||'')}); if(undo.length>30)undo.shift(); dialog.close(); render(); notice('Sala alterada. O horário e a turma foram mantidos.'); }
         catch (error) { status.textContent = explainError(error, 'Quadro de horários — alteração da sala'); status.className='bad'; committing=false; cancel.disabled=false; submit.disabled=false; select.disabled=false; }
     };
     preview(); dialog.showModal(); select.focus();
@@ -868,4 +957,3 @@ function renderAbout() {
 </blockquote>
 </article>`;
 }
-
