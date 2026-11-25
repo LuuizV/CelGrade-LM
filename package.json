@@ -1,7 +1,7 @@
 {
   "name": "celgrade-lm",
   "productName": "CelGrade LM",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "private": true,
   "main": "dist/main.js",
   "scripts": {
@@ -35,7 +35,12 @@
       "package.json"
     ],
     "asar": true,
-    "extraResources": [{"from": "build/icon.ico", "to": "icon.ico"}],
+    "extraResources": [
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
     "npmRebuild": false,
     "win": {
       "target": [

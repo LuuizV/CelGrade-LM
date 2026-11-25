@@ -1,4 +1,20 @@
 [
+{
+    "version": "0.9.8",
+    "date": "2026-11-25",
+    "title": "Grade vespertina, código de disciplinas e exclusão de períodos",
+    "changes": {
+      "Grade vespertina": [
+        "Adicionada opção Vespertina (13:00–18:20) no cadastro de ofertas, vinculada à sala sem exigir turma.",
+        "Adicionada geração, visualização e exportação em PDF da Grade Vespertina junto às demais grades quando houver ofertas à tarde.",
+        "Adicionada disponibilidade vespertina configurável para professores, mantendo salas sempre disponíveis à tarde."
+      ],
+      "Cadastros e períodos": [
+        "Adicionada opção de excluir períodos letivos com ponto de recuperação automático.",
+        "Adicionado campo de código único no cadastro de disciplinas."
+      ]
+    }
+  },
   {
     "version": "0.9.7",
     "date": "2026-10-31",
